@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { RadarChart, ScoreGauge, type RadarAxis } from '../components/dashboard/Charts';
 import { AlertCircle, ArrowRight, ChevronLeft, Download, Upload } from '../components/Icons';
+import { AnalysisGate } from '../components/AnalysisGate';
 import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig, type Improvements } from '../lib/api';
@@ -256,7 +257,18 @@ function ScoreList({
 
 /* ----------------------------------------------------------- recommendations */
 
-function Recommendations({ analysis, config }: { analysis: AnalysisResult; config: AppConfig | null }) {
+function Recommendations({
+  analysis,
+  config,
+  staleResumeId,
+  onReconnected,
+}: {
+  analysis: AnalysisResult;
+  config: AppConfig | null;
+  /** Set when the scores were read back from the database, not this session. */
+  staleResumeId: number | null;
+  onReconnected: () => void;
+}) {
   const { token } = useAuth();
   const [areas, setAreas] = useState<string[]>([]);
   const [result, setResult] = useState<Improvements | null>(null);
@@ -308,6 +320,20 @@ function Recommendations({ analysis, config }: { analysis: AnalysisResult; confi
       setBusy(false);
     }
   };
+
+  // Reading the scores back from the database is free; asking the model for
+  // advice about them is not, and needs the session reconnected first.
+  if (staleResumeId !== null) {
+    return (
+      <AnalysisGate
+        icon={<AlertCircle size={22} />}
+        title="Analyze a resume first"
+        body="Recommendations are generated from your analysed resume."
+        resumeId={staleResumeId}
+        onReconnected={onReconnected}
+      />
+    );
+  }
 
   return (
     <section className="card ra-panel">
@@ -386,6 +412,9 @@ function Recommendations({ analysis, config }: { analysis: AnalysisResult; confi
 export default function ResumeAnalysis() {
   const { token } = useAuth();
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  /** Set when an analysis is on file but this session cannot generate from it. */
+  const [staleResumeId, setStaleResumeId] = useState<number | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   /** Re-opens the upload form once an analysis already fills the page. */
@@ -400,7 +429,9 @@ export default function ResumeAnalysis() {
     Promise.all([api.getAnalysis(token), api.getConfig(token).catch(() => null)])
       .then(([result, cfg]) => {
         if (cancelled) return;
-        setAnalysis(result);
+        setAnalysis(result.result);
+        // The scores render either way; only the generative tab cares.
+        setStaleResumeId(result.active ? null : result.resumeId);
         setConfig(cfg);
         setState('ready');
       })
@@ -413,7 +444,7 @@ export default function ResumeAnalysis() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, reloadKey]);
 
   const sorted = useMemo(
     () => (analysis ? Object.entries(analysis.skill_scores).sort((a, b) => b[1] - a[1]) : []),
@@ -709,7 +740,14 @@ export default function ResumeAnalysis() {
         </section>
       )}
 
-      {tab === 'recommendations' && <Recommendations analysis={analysis} config={config} />}
+      {tab === 'recommendations' && (
+        <Recommendations
+          analysis={analysis}
+          config={config}
+          staleResumeId={staleResumeId}
+          onReconnected={() => setReloadKey((key) => key + 1)}
+        />
+      )}
     </>
   );
 }

@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from '../components/Icons';
+import { AnalysisGate } from '../components/AnalysisGate';
 import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig, type InterviewQuestion } from '../lib/api';
@@ -31,6 +32,9 @@ function readRole(): string {
 export default function InterviewPrep() {
   const { token } = useAuth();
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  /** Set when an analysis is on file but this session cannot use it yet. */
+  const [staleResumeId, setStaleResumeId] = useState<number | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [questions, setQuestions] = useState<InterviewQuestion[] | null>(null);
 
@@ -73,7 +77,10 @@ export default function InterviewPrep() {
     ])
       .then(([result, cfg, cached]) => {
         if (cancelled) return;
-        setAnalysis(result);
+        // This page generates against the resume, which needs the live
+        // agent — a restored-but-inactive analysis is not enough.
+        setAnalysis(result.active ? result.result : null);
+        setStaleResumeId(result.active ? null : result.resumeId);
         setConfig(cfg);
         setQuestions(cached);
         setState('ready');
@@ -87,7 +94,7 @@ export default function InterviewPrep() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, reloadKey]);
 
   const roleTopics = useMemo(
     () => (role ? (config?.role_topics?.[role] ?? []) : []),
@@ -223,14 +230,13 @@ export default function InterviewPrep() {
     return (
       <>
         {head}
-        <section className="card rw-empty">
-          <span className="rw-empty-icon"><MessageSquare size={22} /></span>
-          <h2>Analyze a resume first</h2>
-          <p>Questions are generated from your analysed resume and the skills it scored.</p>
-          <Link className="btn btn-primary" to="/dashboard/analysis">
-            Go to Resume Analysis <ArrowRight />
-          </Link>
-        </section>
+        <AnalysisGate
+          icon={<MessageSquare size={22} />}
+          title="Analyze a resume first"
+          body="Questions are generated from your analysed resume and the skills it scored."
+          resumeId={staleResumeId}
+          onReconnected={() => setReloadKey((key) => key + 1)}
+        />
       </>
     );
   }

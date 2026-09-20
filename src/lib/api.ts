@@ -162,16 +162,31 @@ function queryString(params: Record<string, string | number | boolean | undefine
   return query ? `?${query}` : '';
 }
 
+export type AnalysisState = {
+  /** The analysis, read back from the database if the session lapsed. */
+  result: AnalysisResult | null;
+  /** The saved resume it came from — what a reconnect would reopen. */
+  resumeId: number | null;
+  /**
+   * Whether the session still holds the agent behind the analysis. False
+   * after a backend restart or an idle hour: the scores are still readable,
+   * but anything generative needs the session reconnecting first.
+   */
+  active: boolean;
+};
+
 /**
- * GET /api/analysis — the latest analysis for this session. The backend keeps
- * it in memory, so it is null until a resume has been analysed.
+ * GET /api/analysis — the latest analysis, with the state of the session
+ * holding it. Pages that only display scores can use `result` as-is; pages
+ * that generate something must check `active` too.
  */
-export async function getAnalysis(token: string): Promise<AnalysisResult | null> {
-  const body = await request<{ analysis_result: AnalysisResult | null }>(
-    '/api/analysis',
-    authed(token),
-  );
-  return body.analysis_result;
+export async function getAnalysis(token: string): Promise<AnalysisState> {
+  const body = await request<{
+    analysis_result: AnalysisResult | null;
+    resume_id: number | null;
+    active: boolean;
+  }>('/api/analysis', authed(token));
+  return { result: body.analysis_result, resumeId: body.resume_id, active: body.active };
 }
 
 /** GET /api/config — role catalogue and server-side settings. */

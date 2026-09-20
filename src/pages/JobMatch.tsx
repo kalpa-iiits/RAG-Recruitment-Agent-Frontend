@@ -11,6 +11,7 @@ import {
   Sparkles,
   Trash,
 } from '../components/Icons';
+import { AnalysisGate } from '../components/AnalysisGate';
 import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig, type JobMatch as Match } from '../lib/api';
@@ -70,6 +71,8 @@ export default function JobMatch() {
   const requestedId = Number(params.get('match')) || null;
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  /** Set when an analysis is on file but this session cannot use it yet. */
+  const [staleResumeId, setStaleResumeId] = useState<number | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [current, setCurrent] = useState<Match | null>(null);
 
@@ -78,7 +81,8 @@ export default function JobMatch() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [listing, setListing] = useState(false);
-  /** Bumped by anything that changes the list, to refetch the current page. */
+  /** Bumped by anything that invalidates what is on screen — a mutated
+   *  list, or a session that has just been reconnected. */
   const [reloadKey, setReloadKey] = useState(0);
 
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -113,7 +117,10 @@ export default function JobMatch() {
     ])
       .then(([result, cfg, opened]) => {
         if (cancelled) return;
-        setAnalysis(result);
+        // This page generates against the resume, which needs the live
+        // agent — a restored-but-inactive analysis is not enough.
+        setAnalysis(result.active ? result.result : null);
+        setStaleResumeId(result.active ? null : result.resumeId);
         setConfig(cfg);
         setCurrent(opened);
         setState('ready');
@@ -125,7 +132,7 @@ export default function JobMatch() {
     return () => {
       cancelled = true;
     };
-  }, [token, requestedId]);
+  }, [token, requestedId, reloadKey]);
 
   // A new search is a different list, so it starts at its own first page.
   // Adjusted during render rather than in an effect: an effect would let the
@@ -327,14 +334,13 @@ export default function JobMatch() {
     return (
       <>
         {head}
-        <section className="card rw-empty">
-          <span className="rw-empty-icon"><Briefcase size={22} /></span>
-          <h2>Analyze a resume first</h2>
-          <p>Job matching scores your analysed resume against a posting, so you need one on file.</p>
-          <Link className="btn btn-primary" to="/dashboard/analysis">
-            Go to Resume Analysis <ArrowRight />
-          </Link>
-        </section>
+        <AnalysisGate
+          icon={<Briefcase size={22} />}
+          title="Analyze a resume first"
+          body="Job matching scores your analysed resume against a posting, so you need one on file."
+          resumeId={staleResumeId}
+          onReconnected={reload}
+        />
       </>
     );
   }

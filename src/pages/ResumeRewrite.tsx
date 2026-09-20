@@ -10,6 +10,7 @@ import {
   Target,
   TrendUp,
 } from '../components/Icons';
+import { AnalysisGate } from '../components/AnalysisGate';
 import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig } from '../lib/api';
@@ -51,6 +52,9 @@ function readRole(): string {
 export default function ResumeRewrite() {
   const { token } = useAuth();
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  /** Set when an analysis is on file but this session cannot use it yet. */
+  const [staleResumeId, setStaleResumeId] = useState<number | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [original, setOriginal] = useState<string | null>(null);
   const [improved, setImproved] = useState<string | null>(null);
@@ -97,7 +101,10 @@ export default function ResumeRewrite() {
     ])
       .then(([result, resumeText, cached, cfg, areas]) => {
         if (cancelled) return;
-        setAnalysis(result);
+        // This page generates against the resume, which needs the live
+        // agent — a restored-but-inactive analysis is not enough.
+        setAnalysis(result.active ? result.result : null);
+        setStaleResumeId(result.active ? null : result.resumeId);
         setOriginal(resumeText);
         setImproved(cached.improved_resume);
         setPdfUrl(cached.download_url);
@@ -114,7 +121,7 @@ export default function ResumeRewrite() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, reloadKey]);
 
   const diff = useMemo(
     () => (original && improved ? diffLines(original, improved) : []),
@@ -215,17 +222,13 @@ export default function ResumeRewrite() {
     return (
       <>
         {head}
-        <section className="card rw-empty">
-          <span className="rw-empty-icon"><Sparkles size={22} /></span>
-          <h2>Analyze a resume first</h2>
-          <p>
-            The rewrite works from your analysed resume, so upload one before generating an
-            improved version.
-          </p>
-          <Link className="btn btn-primary" to="/dashboard/analysis">
-            Go to Resume Analysis <ArrowRight />
-          </Link>
-        </section>
+        <AnalysisGate
+          icon={<Sparkles size={22} />}
+          title="Analyze a resume first"
+          body="The rewrite works from your analysed resume, so upload one before generating an improved version."
+          resumeId={staleResumeId}
+          onReconnected={() => setReloadKey((key) => key + 1)}
+        />
       </>
     );
   }

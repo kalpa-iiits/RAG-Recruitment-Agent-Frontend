@@ -74,7 +74,7 @@ export default function Overview() {
     Promise.all([api.getAnalysis(token), api.getConfig(token).catch(() => null)])
       .then(([result, config]) => {
         if (cancelled) return;
-        setAnalysis(result);
+        setAnalysis(result.result);
         if (config) setRoles(Object.keys(config.roles));
         setState('ready');
       })

@@ -12,6 +12,7 @@ import {
   Target,
 } from '../components/Icons';
 import { ScoreGauge } from '../components/dashboard/Charts';
+import { AnalysisGate } from '../components/AnalysisGate';
 import { useAuth } from '../auth/context';
 import { displayName, initials } from '../lib/identity';
 import * as api from '../lib/api';
@@ -39,6 +40,9 @@ function clockTime(iso: string): string {
 export default function ResumeQA() {
   const { user, token } = useAuth();
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  /** Set when an analysis is on file but this session cannot use it yet. */
+  const [staleResumeId, setStaleResumeId] = useState<number | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [history, setHistory] = useState<QaMessage[]>([]);
 
@@ -63,7 +67,10 @@ export default function ResumeQA() {
     ])
       .then(([result, cfg, messages]) => {
         if (cancelled) return;
-        setAnalysis(result);
+        // This page generates against the resume, which needs the live
+        // agent — a restored-but-inactive analysis is not enough.
+        setAnalysis(result.active ? result.result : null);
+        setStaleResumeId(result.active ? null : result.resumeId);
         setConfig(cfg);
         setHistory(messages);
         setState('ready');
@@ -77,7 +84,7 @@ export default function ResumeQA() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, reloadKey]);
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {
@@ -178,14 +185,13 @@ export default function ResumeQA() {
     return (
       <>
         {head}
-        <section className="card rw-empty">
-          <span className="rw-empty-icon"><MessageSquare size={22} /></span>
-          <h2>Analyze a resume first</h2>
-          <p>Answers are drawn from your analysed resume, so upload one to start the conversation.</p>
-          <Link className="btn btn-primary" to="/dashboard/analysis">
-            Go to Resume Analysis <ArrowRight />
-          </Link>
-        </section>
+        <AnalysisGate
+          icon={<MessageSquare size={22} />}
+          title="Analyze a resume first"
+          body="Answers are drawn from your analysed resume, so upload one to start the conversation."
+          resumeId={staleResumeId}
+          onReconnected={() => setReloadKey((key) => key + 1)}
+        />
       </>
     );
   }
