@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AppConfig, type Preferences, type Profile } from '../lib/api';
+import { displayName } from '../lib/identity';
 import { PLANS, rupees } from '../lib/plans';
 import './Settings.css';
 
@@ -31,7 +32,6 @@ const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
 
 const TEXT_FIELDS = [
   { key: 'full_name', label: 'Full Name', placeholder: 'Your name' },
-  { key: 'email', label: 'Email Address', placeholder: 'you@example.com' },
   { key: 'headline', label: 'Headline', placeholder: 'AI Engineer | Building GenAI Applications' },
   { key: 'location', label: 'Location', placeholder: 'City, Country' },
   { key: 'linkedin', label: 'LinkedIn Profile', placeholder: 'https://linkedin.com/in/…' },
@@ -56,8 +56,8 @@ const NOTIFICATIONS: { key: keyof Preferences; label: string; body: string }[] =
   },
 ];
 
-function initials(name: string, username: string): string {
-  const source = name.trim() || username;
+function initials(name: string, email: string): string {
+  const source = name.trim() || displayName(email);
   const parts = source.split(/[\s._-]+/).filter(Boolean);
   const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : source.slice(0, 2);
   return letters.toUpperCase();
@@ -276,13 +276,13 @@ export default function Settings() {
               <p className="st-sub">Update your personal information and how it appears on CVExpert.</p>
 
               <div className="st-identity">
-                <span className="st-avatar">{initials(profile.full_name, profile.username)}</span>
+                <span className="st-avatar">{initials(profile.full_name, profile.email)}</span>
                 <div>
                   <strong>
-                    {profile.full_name || profile.username}
+                    {profile.full_name || displayName(profile.email)}
                     <span className="chip chip-plain">Free Plan</span>
                   </strong>
-                  <em>{profile.email || `@${profile.username}`}</em>
+                  <em>{profile.email}</em>
                   <small>Member since {memberLabel}</small>
                 </div>
               </div>
@@ -422,7 +422,7 @@ export default function Settings() {
 
                 <form onSubmit={removeAccount} className="st-narrow">
                   <label className="form-field">
-                    <span>Type your username <code>{profile.username}</code> to confirm</span>
+                    <span>Type your email <code>{profile.email}</code> to confirm</span>
                     <input type="text" value={deleteConfirm} onChange={(e) => setDeleteConfirm(e.target.value)}
                       autoComplete="off" disabled={saving} />
                   </label>
@@ -434,7 +434,7 @@ export default function Settings() {
                   <button
                     type="submit"
                     className="btn st-delete-btn"
-                    disabled={saving || deleteConfirm !== profile.username || !deletePassword}
+                    disabled={saving || deleteConfirm !== profile.email || !deletePassword}
                   >
                     <Trash size={15} /> Delete my account
                   </button>

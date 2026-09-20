@@ -1,0 +1,98 @@
+.pdfv-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, .62);
+  backdrop-filter: blur(2px);
+}
+
+.pdfv {
+  display: flex;
+  flex-direction: column;
+  width: min(980px, 100%);
+  height: min(90vh, 100%);
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .4);
+}
+
+.pdfv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.pdfv-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pdfv-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pdfv-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pdfv-close:hover { color: var(--text); border-color: var(--muted); }
+
+/* The PDF itself: let the browser's viewer fill whatever is left. */
+.pdfv-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.pdfv-foot {
+  padding: 9px 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: center;
+  border-top: 1px solid var(--line);
+}
+.pdfv-foot a { color: var(--brand, #e2584d); text-decoration: underline; }
+
+/* Shown only when the browser cannot render the PDF itself. */
+.pdfv-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100%;
+  padding: 28px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--card);
+}
+
+@media (max-width: 720px) {
+  .pdfv-backdrop { padding: 12px; }
+  .pdfv { height: 100%; }
+  .pdfv-head h2 { font-size: 14px; }
+}

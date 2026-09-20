@@ -13,6 +13,7 @@ import {
 } from '../components/Icons';
 import { ScoreGauge } from '../components/dashboard/Charts';
 import { useAuth } from '../auth/context';
+import { displayName, initials } from '../lib/identity';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig, type QaMessage } from '../lib/api';
 import { recordActivity } from '../lib/activity';
@@ -258,7 +259,7 @@ export default function ResumeQA() {
             <div className="qa-msg is-ai">
               <span className="qa-avatar is-ai"><Sparkles size={15} /></span>
               <div className="qa-bubble">
-                <p><strong>Hi {user?.username}! 👋</strong></p>
+                <p><strong>Hi {displayName(user?.email)}! 👋</strong></p>
                 <p>
                   I can answer questions about your resume, help you understand your analysis,
                   and provide career advice. What would you like to know?
@@ -277,7 +278,7 @@ export default function ResumeQA() {
                 </div>
                 {message.role === 'user' && (
                   <span className="qa-avatar is-user">
-                    {(user?.username ?? '?').slice(0, 2).toUpperCase()}
+                    {initials(user?.email)}
                   </span>
                 )}
               </div>
@@ -288,7 +289,7 @@ export default function ResumeQA() {
                 <div className="qa-msg is-user">
                   <div className="qa-bubble"><p>{pending}</p></div>
                   <span className="qa-avatar is-user">
-                    {(user?.username ?? '?').slice(0, 2).toUpperCase()}
+                    {initials(user?.email)}
                   </span>
                 </div>
                 <div className="qa-msg is-ai">

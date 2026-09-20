@@ -10,7 +10,8 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 export type User = {
   id: number;
-  username: string;
+  /** The address this account signs in with. */
+  email: string;
   created_at: string;
 };
 
@@ -68,9 +69,12 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 /**
  * POST /api/auth/login — OAuth2 password flow, so the body must be
  * form-encoded rather than JSON.
+ *
+ * The form field is called `username` because the OAuth2 spec says so; the
+ * value it carries is the account's email.
  */
-export function login(username: string, password: string): Promise<Token> {
-  const body = new URLSearchParams({ username, password });
+export function login(email: string, password: string): Promise<Token> {
+  const body = new URLSearchParams({ username: email, password });
   return request<Token>('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -78,12 +82,12 @@ export function login(username: string, password: string): Promise<Token> {
   });
 }
 
-/** POST /api/auth/register — JSON body; 409 when the username is taken. */
-export function register(username: string, password: string): Promise<User> {
+/** POST /api/auth/register — JSON body; 409 when the email is taken. */
+export function register(email: string, password: string): Promise<User> {
   return request<User>('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ email, password }),
   });
 }
 
@@ -136,6 +140,26 @@ export type AppConfig = {
 
 function authed(token: string): RequestInit {
   return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+/** One slice of a longer list — see backend/pagination.py. */
+export type Page<T> = {
+  items: T[];
+  /** Rows matching the filters across every page, which drives the pager. */
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+/** Drops empty values so a blank filter never reaches the server as `?q=`. */
+function queryString(params: Record<string, string | number | boolean | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '' || value === false) continue;
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : '';
 }
 
 /**
@@ -233,20 +257,33 @@ export async function getResumeText(token: string): Promise<string | null> {
 }
 
 /** GET /api/improved-resume — the cached rewrite, or null if none yet. */
-export async function getImprovedResume(token: string): Promise<string | null> {
-  const body = await request<{ improved_resume: string | null }>(
-    '/api/improved-resume',
-    authed(token),
-  );
-  return body.improved_resume;
+/**
+ * GET /api/improved-resume — the cached rewrite and its stored PDF.
+ *
+ * Falls back to the copy saved against the resume row, so a rewrite survives
+ * the server-side session expiring.
+ */
+export function getImprovedResume(token: string): Promise<GeneratedResume> {
+  return request<GeneratedResume>('/api/improved-resume', authed(token));
 }
 
-/** POST /api/improved-resume — runs the LLM and caches the result server-side. */
+export type GeneratedResume = {
+  improved_resume: string | null;
+  /** The saved row it was attached to, if the analysis was persisted. */
+  resume_id: number | null;
+  /** S3 link to the generated PDF, or null when storage is off. */
+  download_url: string | null;
+};
+
+/**
+ * POST /api/improved-resume — runs the LLM, caches the result server-side,
+ * and stores a typeset PDF of it in S3.
+ */
 export async function generateImprovedResume(
   token: string,
   options: { targetRole?: string; highlightSkills?: string; apiKey?: string },
-): Promise<string> {
-  const body = await request<{ improved_resume: string }>('/api/improved-resume', {
+): Promise<GeneratedResume> {
+  return request<GeneratedResume>('/api/improved-resume', {
     method: 'POST',
     headers: { ...withKey(token, options.apiKey), 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -254,7 +291,6 @@ export async function generateImprovedResume(
       highlight_skills: options.highlightSkills ?? '',
     }),
   });
-  return body.improved_resume;
 }
 
 /**
@@ -382,6 +418,14 @@ export type SavedResume = {
   /** Strongest skills first, for the card's chips. */
   tags: string[];
   skill_count: number;
+  /**
+   * Short-lived S3 links, minted per request by the backend. Null when the
+   * file was never stored — S3 is optional, and rows predating it have none.
+   * Treat them as expiring: fetch a fresh list rather than caching a URL.
+   */
+  resume_url: string | null;
+  jd_url: string | null;
+  improved_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -389,11 +433,16 @@ export type SavedResume = {
 export type SavedResumeDetail = SavedResume & {
   resume_text: string;
   analysis_result: AnalysisResult | null;
+  improved_text: string | null;
 };
 
-/** GET /api/resumes — favourites first, then most recently updated. */
-export function listResumes(token: string): Promise<SavedResume[]> {
-  return request<SavedResume[]>('/api/resumes', authed(token));
+/** GET /api/resumes — one page, favourites first, then most recently updated. */
+export function listResumes(
+  token: string,
+  options: { limit?: number; offset?: number; q?: string } = {},
+): Promise<Page<SavedResume>> {
+  const query = queryString({ limit: options.limit, offset: options.offset, q: options.q });
+  return request<Page<SavedResume>>(`/api/resumes${query}`, authed(token));
 }
 
 export function readResume(token: string, id: number): Promise<SavedResumeDetail> {
@@ -453,10 +502,10 @@ export type Preferences = {
 };
 
 export type Profile = {
-  username: string;
+  /** The login address; changed through the account, not the profile form. */
+  email: string;
   member_since: string;
   full_name: string;
-  email: string;
   headline: string;
   location: string;
   linkedin: string;
@@ -473,7 +522,7 @@ export function getProfile(token: string): Promise<Profile> {
 /** PATCH /api/profile — send only the fields being changed. */
 export function updateProfile(
   token: string,
-  patch: Partial<Omit<Profile, 'username' | 'member_since' | 'saved_resume_count' | 'preferences'>> & {
+  patch: Partial<Omit<Profile, 'email' | 'member_since' | 'saved_resume_count' | 'preferences'>> & {
     preferences?: Partial<Preferences>;
   },
 ): Promise<Profile> {
@@ -541,6 +590,8 @@ export type JobMatch = {
   has_optimized_resume: boolean;
   /** Measured by re-scoring the tailored resume, not predicted. */
   optimized_score: number | null;
+  /** Short-lived S3 link to the tailored resume PDF; see SavedResume. */
+  optimized_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -550,8 +601,23 @@ export type JobMatchDetail = JobMatch & {
   optimized_resume: string | null;
 };
 
-export function listJobMatches(token: string): Promise<JobMatch[]> {
-  return request<JobMatch[]>('/api/job-match', authed(token));
+/**
+ * GET /api/job-match — one page of matches, most recently updated first.
+ *
+ * `optimizedOnly` narrows it to the postings a tailored resume was actually
+ * generated for, which is what the job-specific resume list shows.
+ */
+export function listJobMatches(
+  token: string,
+  options: { limit?: number; offset?: number; optimizedOnly?: boolean; q?: string } = {},
+): Promise<Page<JobMatch>> {
+  const query = queryString({
+    limit: options.limit,
+    offset: options.offset,
+    optimized_only: options.optimizedOnly,
+    q: options.q,
+  });
+  return request<Page<JobMatch>>(`/api/job-match${query}`, authed(token));
 }
 
 export function readJobMatch(token: string, id: number): Promise<JobMatchDetail> {
@@ -610,4 +676,68 @@ export async function deleteJobMatch(token: string, id: number): Promise<void> {
     throw new ApiError('Could not reach the server.', 0);
   });
   if (!response.ok) throw await toApiError(response);
+}
+
+/* -------------------------------------------------------------------------
+ * Library — the merged Saved Resumes feed
+ * ---------------------------------------------------------------------- */
+
+export type LibrarySource = 'all' | 'base' | 'tailored';
+export type LibrarySort = 'modified' | 'score' | 'name';
+
+/**
+ * One row of the Saved Resumes list, from either source.
+ *
+ * Exactly one of `base` / `match` is set and carries what the row's actions
+ * operate on. The headings come from the server because they are what its
+ * name sort and search run against.
+ */
+export type LibraryItem = {
+  key: string;
+  kind: 'base' | 'tailored';
+  heading: string;
+  subheading: string;
+  company: string;
+  role: string;
+  score: number | null;
+  good: boolean;
+  favourite: boolean;
+  updated_at: string;
+  base: SavedResume | null;
+  match: JobMatch | null;
+};
+
+export type LibraryPage = Page<LibraryItem> & {
+  /** Every role in the library, not just on this page — the filter's options. */
+  roles: string[];
+  /** Rows before any filter, which tells an empty search from an empty library. */
+  total_all: number;
+};
+
+/**
+ * GET /api/library — analysed and tailored resumes interleaved under one sort.
+ *
+ * Sorting, filtering and paging all happen server-side: the list spans two
+ * tables, so a page of it is not a page of either one.
+ */
+export function readLibrary(
+  token: string,
+  options: {
+    limit?: number;
+    offset?: number;
+    source?: LibrarySource;
+    role?: string;
+    sort?: LibrarySort;
+    q?: string;
+  } = {},
+): Promise<LibraryPage> {
+  const query = queryString({
+    limit: options.limit,
+    offset: options.offset,
+    source: options.source === 'all' ? undefined : options.source,
+    role: options.role,
+    sort: options.sort === 'modified' ? undefined : options.sort,
+    q: options.q,
+  });
+  return request<LibraryPage>(`/api/library${query}`, authed(token));
 }

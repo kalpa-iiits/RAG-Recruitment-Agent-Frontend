@@ -28,7 +28,7 @@ export default function App() {
         path="/dashboard"
         element={
           <RequireAuth>
-            <Dashboard />
+            <Dashboard theme={theme} onThemeChange={setTheme} />
           </RequireAuth>
         }
       >

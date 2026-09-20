@@ -14,7 +14,10 @@ import {
   PenSquare,
   Target,
 } from '../components/Icons';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useAuth } from '../auth/context';
+import { displayName, initials } from '../lib/identity';
+import type { Theme } from '../hooks/useTheme';
 import './Dashboard.css';
 
 const nav = [
@@ -28,13 +31,9 @@ const nav = [
   { to: '/dashboard/settings', label: 'Settings', icon: Gear },
 ];
 
-function initials(username: string): string {
-  const parts = username.split(/[\s._-]+/).filter(Boolean);
-  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : username.slice(0, 2);
-  return letters.toUpperCase();
-}
+type Props = { theme: Theme; onThemeChange: (theme: Theme) => void };
 
-export default function Dashboard() {
+export default function Dashboard({ theme, onThemeChange }: Props) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -56,7 +55,7 @@ export default function Dashboard() {
     };
   }, [menuOpen]);
 
-  const username = user?.username ?? '';
+  const name = displayName(user?.email);
 
   return (
     <div className="dsh">
@@ -85,15 +84,17 @@ export default function Dashboard() {
 
       <div className="dsh-main">
         <header className="dsh-topbar">
+          <ThemeToggle theme={theme} onChange={onThemeChange} />
+
           <button type="button" className="dsh-bell" aria-label="Notifications">
             <Bell />
           </button>
 
           <div className="dsh-account" ref={menuRef}>
             <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen}>
-              <span className="dsh-avatar">{initials(username)}</span>
-              <span className="dsh-whoami">
-                <strong>{username}</strong>
+              <span className="dsh-avatar">{initials(user?.email)}</span>
+              <span className="dsh-whoami" title={user?.email ?? ''}>
+                <strong>{name}</strong>
                 <em>Free Plan</em>
               </span>
               <ChevronDown size={16} />

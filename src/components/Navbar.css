@@ -45,25 +45,8 @@
 
 .nav-actions { display: flex; align-items: center; gap: 10px; }
 
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-right: 6px;
-}
-.theme-toggle button {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  transition: background-color .15s ease, color .15s ease;
-}
-.theme-toggle button:hover { color: var(--ink); background: var(--surface-2); }
-.theme-toggle button.is-active { color: var(--ink); background: var(--surface-2); }
+/* The toggle itself is styled in ThemeToggle.css; this is nav spacing only. */
+.nav-actions .theme-toggle { margin-right: 6px; }
 
 .nav-login { padding: 10px 22px; }
 
@@ -84,5 +67,5 @@
 @media (max-width: 560px) {
   .nav-login { display: none; }
   .nav-inner { gap: 12px; }
-  .theme-toggle { margin-right: 0; }
+  .nav-actions .theme-toggle { margin-right: 0; }
 }

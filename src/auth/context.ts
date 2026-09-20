@@ -6,8 +6,8 @@ export type AuthContextValue = {
   token: string | null;
   /** 'loading' while a stored token is being validated on first paint. */
   status: 'loading' | 'ready';
-  signIn: (username: string, password: string) => Promise<void>;
-  signUp: (username: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => void;
 };
 

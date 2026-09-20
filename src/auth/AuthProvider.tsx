@@ -60,8 +60,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [token, checkedToken]);
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    const issued = await api.login(username, password);
+  const signIn = useCallback(async (email: string, password: string) => {
+    const issued = await api.login(email, password);
     const profile = await api.me(issued.access_token);
     writeToken(issued.access_token);
     setToken(issued.access_token);
@@ -70,9 +70,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = useCallback(
-    async (username: string, password: string) => {
-      await api.register(username, password);
-      await signIn(username, password);
+    async (email: string, password: string) => {
+      await api.register(email, password);
+      await signIn(email, password);
     },
     [signIn],
   );

@@ -388,6 +388,8 @@ export default function ResumeAnalysis() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
+  /** Re-opens the upload form once an analysis already fills the page. */
+  const [showUpload, setShowUpload] = useState(false);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -493,14 +495,35 @@ export default function ResumeAnalysis() {
           <h1>Resume Analysis</h1>
           <p>Get a complete analysis of your resume and find out how to improve.</p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => downloadReport(analysis, targetRole)}
-        >
-          <Download size={16} /> Download Report
-        </button>
+        <div className="ra-head-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => setShowUpload((open) => !open)}
+            aria-expanded={showUpload}
+          >
+            <Upload size={16} /> {showUpload ? 'Cancel' : 'Add new resume'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => downloadReport(analysis, targetRole)}
+          >
+            <Download size={16} /> Download Report
+          </button>
+        </div>
       </header>
+
+      {showUpload && (
+        <UploadPanel
+          config={config}
+          onAnalyzed={(result) => {
+            setAnalysis(result);
+            setTab('overview');
+            setShowUpload(false);
+          }}
+        />
+      )}
 
       <nav className="ra-tabs" role="tablist">
         {TABS.map(({ id, label }) => (

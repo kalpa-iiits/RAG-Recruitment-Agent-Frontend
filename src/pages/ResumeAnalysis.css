@@ -16,6 +16,12 @@
   gap: 20px;
   margin-bottom: 20px;
 }
+.ra-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .ra-head h1 { font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
 .ra-head p { margin-top: 6px; font-size: 15px; color: var(--muted); }
 

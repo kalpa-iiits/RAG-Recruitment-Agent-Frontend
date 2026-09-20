@@ -1,0 +1,81 @@
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.pager-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.pager-count strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.pager-step,
+.pager-page {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+}
+
+.pager-step:hover:not(:disabled),
+.pager-page:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--surface-2);
+}
+
+.pager-page.is-current,
+.pager-page.is-current:hover:not(:disabled) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.pager-step:disabled,
+.pager-page:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.pager-gap {
+  width: 22px;
+  text-align: center;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .pager {
+    justify-content: center;
+  }
+
+  .pager-controls {
+    margin-left: 0;
+  }
+
+  /* Prev/Next and the current page are enough on a phone. */
+  .pager-page:not(.is-current),
+  .pager-gap {
+    display: none;
+  }
+}

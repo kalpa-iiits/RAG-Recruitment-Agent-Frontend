@@ -8,18 +8,18 @@ import './Login.css';
 
 type Mode = 'login' | 'signup';
 
-/** Mirrors the constraints in backend/auth.py's UserCreate model. */
-const USERNAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
+/** Mirrors EMAIL_PATTERN in backend/auth.py. */
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
-function validate(mode: Mode, username: string, password: string, confirm: string): string | null {
-  if (!username.trim()) return 'Enter your username.';
+function validate(mode: Mode, email: string, password: string, confirm: string): string | null {
+  if (!email.trim()) return 'Enter your email address.';
   if (!password) return 'Enter your password.';
+  // Signing in only looks the address up, and accounts that predate email
+  // login still carry their old username — so the format is not enforced here.
   if (mode === 'login') return null;
 
-  if (username.length < 3 || username.length > 50)
-    return 'Username must be between 3 and 50 characters.';
-  if (!USERNAME_PATTERN.test(username))
-    return 'Username can only contain letters, numbers, and . _ -';
+  if (email.length > 200) return 'That email address is too long.';
+  if (!EMAIL_PATTERN.test(email.trim())) return 'Enter a valid email address.';
   if (password.length < 8) return 'Password must be at least 8 characters.';
   if (password.length > 128) return 'Password must be at most 128 characters.';
   if (password !== confirm) return 'Passwords do not match.';
@@ -33,7 +33,7 @@ export default function Login() {
 
   const mode: Mode = params.get('tab') === 'signup' ? 'signup' : 'login';
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -64,7 +64,7 @@ export default function Login() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    const problem = validate(mode, username, password, confirm);
+    const problem = validate(mode, email, password, confirm);
     if (problem) {
       setError(problem);
       return;
@@ -73,12 +73,12 @@ export default function Login() {
     setMessage(null);
     setSubmitting(true);
     try {
-      if (mode === 'login') await signIn(username, password);
-      else await signUp(username, password);
+      if (mode === 'login') await signIn(email.trim(), password);
+      else await signUp(email.trim(), password);
       // On success the redirect above takes over once `user` lands.
     } catch (caught) {
       if (caught instanceof ApiError && caught.status === 409) {
-        setError('That username is already taken. Try signing in instead.');
+        setError('That email is already registered. Try signing in instead.');
       } else if (caught instanceof ApiError) {
         setError(caught.message);
       } else {
@@ -153,14 +153,14 @@ export default function Login() {
 
           <form onSubmit={onSubmit} noValidate>
             <label className="field">
-              <span>Username</span>
+              <span>Email</span>
               <input
-                type="text"
-                name="username"
-                autoComplete="username"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 disabled={submitting}
               />
             </label>

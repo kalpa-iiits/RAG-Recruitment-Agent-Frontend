@@ -15,6 +15,7 @@ import {
   Users,
 } from '../components/Icons';
 import { useAuth } from '../auth/context';
+import { displayName } from '../lib/identity';
 import * as api from '../lib/api';
 import type { AnalysisResult } from '../lib/api';
 import { readActivity, timeAgo, type ActivityKind } from '../lib/activity';
@@ -103,7 +104,7 @@ export default function Overview() {
 
   const greeting = (
     <header className="ov-head">
-      <h1>Welcome back, {user?.username}! 👋</h1>
+      <h1>Welcome back, {displayName(user?.email)}! 👋</h1>
       <p>Here's your resume analysis overview.</p>
     </header>
   );

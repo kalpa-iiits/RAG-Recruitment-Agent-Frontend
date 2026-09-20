@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -15,11 +15,15 @@ import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig, type JobMatch as Match } from '../lib/api';
 import { downloadText } from '../lib/diff';
+import { PdfPreview } from '../components/PdfPreview';
+import { Pagination } from '../components/Pagination';
+import { useDebounced } from '../hooks/useDebounced';
 import { recordActivity } from '../lib/activity';
 import './JobMatch.css';
 
 const MAX_CHARS = 20000;
 const MIN_CHARS = 50;
+const PAGE_SIZE = 5;
 
 const SAMPLE_JD = `We are looking for a Senior AI Engineer to join our team.
 
@@ -67,8 +71,15 @@ export default function JobMatch() {
 
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
-  const [matches, setMatches] = useState<Match[]>([]);
   const [current, setCurrent] = useState<Match | null>(null);
+
+  // The list is server-paginated: one page of rows plus the count behind it.
+  const [items, setItems] = useState<Match[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [listing, setListing] = useState(false);
+  /** Bumped by anything that changes the list, to refetch the current page. */
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [jd, setJd] = useState('');
@@ -77,8 +88,13 @@ export default function JobMatch() {
   const [apiKey, setApiKey] = useState('');
   const [busy, setBusy] = useState<'analyze' | 'generate' | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  /** The tailored resume PDF currently shown in the viewer, if any. */
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const search = useDebounced(query);
+
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
 
   useEffect(() => {
     if (!token) return;
@@ -87,14 +103,19 @@ export default function JobMatch() {
     Promise.all([
       api.getAnalysis(token),
       api.getConfig(token).catch(() => null),
-      api.listJobMatches(token).catch(() => []),
+      // The panel opens on the job the link names, else the newest match —
+      // which is fetched on its own because it need not be in the list at
+      // all: a job that has no tailored resume yet is not listed.
+      (requestedId
+        ? api.readJobMatch(token, requestedId)
+        : api.listJobMatches(token, { limit: 1 }).then((first) => first.items[0] ?? null)
+      ).catch(() => null),
     ])
-      .then(([result, cfg, rows]) => {
+      .then(([result, cfg, opened]) => {
         if (cancelled) return;
         setAnalysis(result);
         setConfig(cfg);
-        setMatches(rows);
-        setCurrent(rows.find((row) => row.id === requestedId) ?? rows[0] ?? null);
+        setCurrent(opened);
         setState('ready');
       })
       .catch(() => {
@@ -106,16 +127,51 @@ export default function JobMatch() {
     };
   }, [token, requestedId]);
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return matches;
-    return matches.filter(
-      (m) =>
-        m.company.toLowerCase().includes(needle) ||
-        m.title.toLowerCase().includes(needle) ||
-        m.role_summary.key_skills.some((s) => s.toLowerCase().includes(needle)),
-    );
-  }, [matches, query]);
+  // A new search is a different list, so it starts at its own first page.
+  // Adjusted during render rather than in an effect: an effect would let the
+  // fetch below run once against the old page before the reset landed.
+  const [lastSearch, setLastSearch] = useState(search);
+  if (search !== lastSearch) {
+    setLastSearch(search);
+    setPage(0);
+  }
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    setListing(true);
+
+    // Only jobs a resume was actually generated for: the rest live in the
+    // Match Analysis panel above until they have one.
+    api
+      .listJobMatches(token, {
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+        optimizedOnly: true,
+        q: search,
+      })
+      .then((result) => {
+        if (cancelled) return;
+        // Deleting the last row on a page leaves it empty — step back one.
+        const lastPage = Math.max(0, Math.ceil(result.total / PAGE_SIZE) - 1);
+        if (page > lastPage) {
+          setPage(lastPage);
+          return;
+        }
+        setItems(result.items);
+        setTotal(result.total);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Could not load your job-specific resumes.');
+      })
+      .finally(() => {
+        if (!cancelled) setListing(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, page, search, reloadKey]);
 
   const analyze = async () => {
     if (!token) return;
@@ -133,7 +189,8 @@ export default function JobMatch() {
         title: title.trim(),
         apiKey: apiKey.trim() || undefined,
       });
-      setMatches((rows) => [match, ...rows]);
+      // Nothing to reload: a fresh match has no tailored resume, so it is
+      // not in the list until one is generated for it.
       setCurrent(match);
       setJd('');
       setCompany('');
@@ -157,8 +214,9 @@ export default function JobMatch() {
     setBusyId(match.id);
     try {
       const updated = await api.generateJobResume(token, match.id, apiKey.trim() || undefined);
-      setMatches((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
       if (current?.id === updated.id) setCurrent(updated);
+      // The job joins the list now, or moves to the top of it.
+      reload();
       recordActivity({ kind: 'rewrite', label: `Tailored resume for ${updated.company || updated.title}` });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not generate that resume.');
@@ -168,11 +226,22 @@ export default function JobMatch() {
     }
   };
 
+  /**
+   * Open the stored PDF when there is one, otherwise fall back to the text.
+   *
+   * The match is re-read first so the signed S3 link is fresh — the one on
+   * the list may have been minted long enough ago to have expired.
+   */
   const download = async (match: Match) => {
     if (!token) return;
     setBusyId(match.id);
     try {
       const detail = await api.readJobMatch(token, match.id);
+      if (detail.optimized_url) {
+        // Re-read above means this link is fresh, not one minted for the list.
+        setPreview({ url: detail.optimized_url, title: [match.company, match.title].filter(Boolean).join(' — ') || 'Tailored resume' });
+        return;
+      }
       if (!detail.optimized_resume) {
         setError('Generate the tailored resume first.');
         return;
@@ -199,8 +268,8 @@ export default function JobMatch() {
         company: nextCompany,
         title: nextTitle,
       });
-      setMatches((rows) => rows.map((row) => (row.id === updated.id ? updated : row)));
       if (current?.id === updated.id) setCurrent(updated);
+      reload();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not update that job.');
     } finally {
@@ -214,8 +283,8 @@ export default function JobMatch() {
     setBusyId(match.id);
     try {
       await api.deleteJobMatch(token, match.id);
-      setMatches((rows) => rows.filter((row) => row.id !== match.id));
       if (current?.id === match.id) setCurrent(null);
+      reload();
     } catch {
       setError('Could not delete that match.');
     } finally {
@@ -438,7 +507,7 @@ export default function JobMatch() {
             <h2>Your Job-Specific Resumes</h2>
             <p className="jm-sub">Each job keeps its own match and tailored resume.</p>
           </div>
-          {matches.length > 0 && (
+          {(total > 0 || query) && (
             <input
               type="search"
               value={query}
@@ -449,13 +518,15 @@ export default function JobMatch() {
           )}
         </div>
 
-        {matches.length === 0 ? (
-          <p className="jm-none">No job matches yet. Run one above to get started.</p>
-        ) : visible.length === 0 ? (
-          <p className="jm-none">No jobs match that search.</p>
+        {total === 0 ? (
+          <p className="jm-none">
+            {search
+              ? 'No jobs match that search.'
+              : 'No tailored resumes yet. Analyze a job above, then generate one for it.'}
+          </p>
         ) : (
           <ul className="jm-list">
-            {visible.map((match) => (
+            {items.map((match) => (
               <li key={match.id} className={busyId === match.id ? 'is-busy' : ''}>
                 <span className="jm-logo">{(match.company || match.title || '?').slice(0, 1).toUpperCase()}</span>
 
@@ -480,17 +551,13 @@ export default function JobMatch() {
                 </div>
 
                 <div className="jm-job-actions">
-                  <button type="button" className="btn btn-ghost" onClick={() => setCurrent(match)}>
-                    <Eye size={15} /> View
-                  </button>
                   <button
                     type="button"
                     className="btn btn-ghost"
                     onClick={() => download(match)}
-                    disabled={!match.has_optimized_resume || busyId === match.id}
-                    title={match.has_optimized_resume ? undefined : 'Generate the tailored resume first'}
+                    disabled={busyId === match.id}
                   >
-                    <Download size={15} /> Download
+                    {match.optimized_url ? <><Eye size={15} /> View PDF</> : <><Download size={15} /> Download</>}
                   </button>
                   <button
                     type="button"
@@ -508,7 +575,24 @@ export default function JobMatch() {
             ))}
           </ul>
         )}
+
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onChange={setPage}
+          noun="resumes"
+          busy={listing}
+        />
       </section>
+
+      {preview && (
+        <PdfPreview
+          url={preview.url}
+          title={preview.title}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </>
   );
 }

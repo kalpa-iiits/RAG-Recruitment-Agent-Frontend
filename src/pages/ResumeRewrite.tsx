@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Download,
+  Eye,
   FileText,
   Rocket,
   Sparkles,
@@ -13,6 +14,7 @@ import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
 import { ApiError, type AnalysisResult, type AppConfig } from '../lib/api';
 import { diffLines, diffStats, downloadText } from '../lib/diff';
+import { PdfPreview } from '../components/PdfPreview';
 import { recordActivity } from '../lib/activity';
 import './ResumeRewrite.css';
 
@@ -63,6 +65,24 @@ export default function ResumeRewrite() {
   const [busy, setBusy] = useState<'generate' | 'apply' | 'areas' | null>(null);
   const [improvements, setImprovements] = useState<api.Improvements | null>(null);
   const [applied, setApplied] = useState<{ before: number | null; after: number } | null>(null);
+  /** S3 link to the generated PDF; null until a rewrite exists. */
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  /**
+   * Presigned S3 links expire, so refresh before showing the viewer. A tab
+   * left open past the expiry would otherwise render an XML AccessDenied.
+   */
+  const openPreview = async () => {
+    if (!token) return;
+    try {
+      const latest = await api.getImprovedResume(token);
+      if (latest.download_url) setPdfUrl(latest.download_url);
+    } catch {
+      /* fall back to the link already in hand */
+    }
+    setPreviewing(true);
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -79,7 +99,8 @@ export default function ResumeRewrite() {
         if (cancelled) return;
         setAnalysis(result);
         setOriginal(resumeText);
-        setImproved(cached);
+        setImproved(cached.improved_resume);
+        setPdfUrl(cached.download_url);
         setConfig(cfg);
         setImprovements(areas);
         setState('ready');
@@ -106,12 +127,13 @@ export default function ResumeRewrite() {
     setError(null);
     setBusy('generate');
     try {
-      const text = await api.generateImprovedResume(token, {
+      const generated = await api.generateImprovedResume(token, {
         targetRole: role,
         highlightSkills: highlight.trim(),
         apiKey: apiKey.trim() || undefined,
       });
-      setImproved(text);
+      setImproved(generated.improved_resume);
+      setPdfUrl(generated.download_url);
       setApplied(null);
       recordActivity({ kind: 'rewrite', label: 'Created improved resume' });
       // The areas card is driven by the model too; fetch it alongside, but
@@ -415,15 +437,32 @@ export default function ResumeRewrite() {
             <section className="card ra-panel rw-download">
               <h2>Download</h2>
               <p className="ra-panel-sub">
-                Saved as plain text, ready to paste into your resume template.
+                {pdfUrl
+                  ? 'A typeset PDF is stored with this resume. Plain text is there too, for pasting into your own template.'
+                  : 'Saved as plain text, ready to paste into your resume template.'}
               </p>
               <div className="rw-download-actions">
+                {pdfUrl && (
+                  <button type="button" className="btn btn-primary" onClick={openPreview}>
+                    <Eye size={16} /> View improved resume (PDF)
+                  </button>
+                )}
+                {pdfUrl && (
+                  <a
+                    className="btn btn-ghost"
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download size={16} /> Download PDF
+                  </a>
+                )}
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className={pdfUrl ? 'btn btn-ghost' : 'btn btn-primary'}
                   onClick={() => downloadText('cvexpert-improved-resume.txt', improved)}
                 >
-                  <Download size={16} /> Improved resume
+                  <Download size={16} /> Improved resume (text)
                 </button>
                 <button
                   type="button"
@@ -447,6 +486,15 @@ export default function ResumeRewrite() {
             >
               <Download size={16} /> Download Improved Resume
             </button>
+            {pdfUrl && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-lg"
+                onClick={openPreview}
+              >
+                <Eye size={16} /> View PDF
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-ghost btn-lg"
@@ -456,6 +504,13 @@ export default function ResumeRewrite() {
               {busy === 'generate' ? 'Regenerating…' : 'Regenerate'}
             </button>
           </div>
+          {previewing && pdfUrl && (
+            <PdfPreview
+              url={pdfUrl}
+              title="Improved resume"
+              onClose={() => setPreviewing(false)}
+            />
+          )}
           <p className="rw-apply-note">
             Applying replaces your analysed resume with this version and re-scores it against the
             same skills.

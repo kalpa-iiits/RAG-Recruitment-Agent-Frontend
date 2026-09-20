@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/context';
-import { ChevronDown, Logo, Moon, Sun } from './Icons';
+import { ChevronDown, Logo } from './Icons';
+import { ThemeToggle } from './ThemeToggle';
+import { displayName } from '../lib/identity';
 import type { Theme } from '../hooks/useTheme';
 import './Navbar.css';
 
@@ -51,30 +53,13 @@ export default function Navbar({ theme, onThemeChange }: Props) {
         </nav>
 
         <div className="nav-actions">
-          <div className="theme-toggle" role="group" aria-label="Color theme">
-            <button
-              type="button"
-              className={theme === 'light' ? 'is-active' : ''}
-              onClick={() => onThemeChange('light')}
-              aria-label="Light theme"
-              aria-pressed={theme === 'light'}
-            >
-              <Sun />
-            </button>
-            <button
-              type="button"
-              className={theme === 'dark' ? 'is-active' : ''}
-              onClick={() => onThemeChange('dark')}
-              aria-label="Dark theme"
-              aria-pressed={theme === 'dark'}
-            >
-              <Moon />
-            </button>
-          </div>
+          <ThemeToggle theme={theme} onChange={onThemeChange} />
           {user ? (
             <>
               <Link className="btn btn-ghost nav-login" to="/dashboard">Dashboard</Link>
-              <span className="nav-user" title={`Signed in as ${user.username}`}>{user.username}</span>
+              <span className="nav-user" title={`Signed in as ${user.email}`}>
+                {displayName(user.email)}
+              </span>
               <button type="button" className="btn btn-ghost" onClick={signOut}>Log out</button>
             </>
           ) : (

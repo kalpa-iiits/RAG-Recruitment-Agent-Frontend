@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -13,17 +13,26 @@ import {
 } from '../components/Icons';
 import { useAuth } from '../auth/context';
 import * as api from '../lib/api';
-import { ApiError, type JobMatch, type SavedResume } from '../lib/api';
+import { ApiError, type JobMatch, type LibraryItem, type SavedResume } from '../lib/api';
 import { timeAgo } from '../lib/activity';
 import { downloadText } from '../lib/diff';
+import { PdfPreview } from '../components/PdfPreview';
+import { Pagination } from '../components/Pagination';
+import { useDebounced } from '../hooks/useDebounced';
 import './SavedResumes.css';
 
 type Sort = 'modified' | 'score' | 'name';
 type Source = 'all' | 'base' | 'tailored';
 
+const PAGE_SIZE = 10;
+
 /**
  * One list, two origins: resumes you analysed, and the company-specific
  * versions generated on the Job Match page.
+ *
+ * Both come from /api/library, which merges the two tables and does the
+ * sorting, filtering and paging — a page of the merged list is not a page of
+ * either source, so neither can paginate on its own.
  */
 type Row = {
   key: string;
@@ -40,6 +49,13 @@ type Row = {
   updatedAt: string;
   base?: SavedResume;
   match?: JobMatch;
+};
+
+/** What each stored file is called in the viewer's title bar. */
+const LABELS: Record<'original' | 'improved' | 'tailored', string> = {
+  original: 'Original PDF',
+  improved: 'Improved resume',
+  tailored: 'Tailored resume',
 };
 
 const SOURCES: { id: Source; label: string }[] = [
@@ -89,8 +105,17 @@ export default function SavedResumes() {
   const { token } = useAuth();
   const navigate = useNavigate();
 
-  const [items, setItems] = useState<SavedResume[]>([]);
-  const [tailored, setTailored] = useState<JobMatch[]>([]);
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  // Rows matching the filters, and rows in the library at all — the second
+  // tells an empty search apart from a library with nothing in it.
+  const [total, setTotal] = useState(0);
+  const [totalAll, setTotalAll] = useState(0);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const [listing, setListing] = useState(false);
+  /** Bumped by anything that changes the list, to refetch the current page. */
+  const [reloadKey, setReloadKey] = useState(0);
+
   const [source, setSource] = useState<Source>('all');
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -100,33 +125,66 @@ export default function SavedResumes() {
   const [sort, setSort] = useState<Sort>('modified');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  /** The PDF currently shown in the viewer, if any. */
+  const [preview, setPreview] = useState<{ url: string; title: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const search = useDebounced(query);
+
+  const reload = useCallback(() => setReloadKey((key) => key + 1), []);
+
+  // Any change of filter or sort is a different list, so it starts at its
+  // own first page rather than wherever the last one was left. Adjusted
+  // during render rather than in an effect: an effect would let the fetch
+  // below run once against the old page before the reset landed.
+  const filters = `${source}|${roleFilter}|${sort}|${search}`;
+  const [lastFilters, setLastFilters] = useState(filters);
+  if (filters !== lastFilters) {
+    setLastFilters(filters);
+    setPage(0);
+  }
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
+    setListing(true);
 
-    Promise.all([
-      api.listResumes(token),
-      // Only matches that actually produced a resume belong in this list.
-      api.listJobMatches(token).catch(() => []),
-    ])
-      .then(([rows, matches]) => {
+    api
+      .readLibrary(token, {
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+        source,
+        role: roleFilter,
+        sort,
+        q: search,
+      })
+      .then((result) => {
         if (cancelled) return;
-        setItems(rows);
-        setTailored(matches.filter((m) => m.has_optimized_resume));
+        // Deleting the last row on a page leaves it empty — step back one.
+        const lastPage = Math.max(0, Math.ceil(result.total / PAGE_SIZE) - 1);
+        if (page > lastPage) {
+          setPage(lastPage);
+          return;
+        }
+        setItems(result.items);
+        setTotal(result.total);
+        setTotalAll(result.total_all);
+        setRoles(result.roles);
         setState('ready');
       })
       .catch((caught: unknown) => {
         if (cancelled) return;
         setError(caught instanceof Error ? caught.message : 'Could not load your resumes.');
-        setState('error');
+        // A later page failing is worth an alert, not a blank screen.
+        setState((previous) => (previous === 'loading' ? 'error' : previous));
+      })
+      .finally(() => {
+        if (!cancelled) setListing(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, page, source, roleFilter, sort, search, reloadKey]);
 
   useEffect(() => {
     if (menuId === null) return;
@@ -137,74 +195,35 @@ export default function SavedResumes() {
     return () => document.removeEventListener('mousedown', close);
   }, [menuId]);
 
-  const rows = useMemo<Row[]>(() => {
-    const fromBase: Row[] = items.map((item) => ({
-      key: `r-${item.id}`,
-      kind: 'base',
-      heading: item.filename,
-      subheading: item.role || 'No role set',
-      company: '',
-      role: item.role,
-      score: item.overall_score,
-      good: item.selected,
-      tags: item.tags,
-      favourite: item.favourite,
-      updatedAt: item.updated_at,
-      base: item,
-    }));
-
-    const fromMatches: Row[] = tailored.map((match) => ({
-      key: `j-${match.id}`,
-      kind: 'tailored',
-      heading: match.company || 'Company not stated',
-      subheading: match.title || 'Role not stated',
-      company: match.company,
-      role: match.title,
-      score: match.optimized_score ?? match.match_score,
-      good: (match.optimized_score ?? match.match_score) >= 75,
-      tags: match.role_summary.key_skills,
-      favourite: false,
-      updatedAt: match.updated_at,
-      match,
-    }));
-
-    return [...fromBase, ...fromMatches];
-  }, [items, tailored]);
-
-  const roles = useMemo(
-    () => [...new Set(rows.map((row) => row.role).filter(Boolean))].sort(),
-    [rows],
+  // The server has already filtered, sorted and sliced; the only thing left
+  // is picking the chips off whichever payload the row came with.
+  const rows = useMemo<Row[]>(
+    () =>
+      items.map((item) => ({
+        key: item.key,
+        kind: item.kind,
+        heading: item.heading,
+        subheading: item.subheading,
+        company: item.company,
+        role: item.role,
+        score: item.score,
+        good: item.good,
+        tags: item.match ? item.match.role_summary.key_skills : item.base?.tags ?? [],
+        favourite: item.favourite,
+        updatedAt: item.updated_at,
+        base: item.base ?? undefined,
+        match: item.match ?? undefined,
+      })),
+    [items],
   );
-
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const filtered = rows.filter((row) => {
-      if (source !== 'all' && row.kind !== source) return false;
-      if (roleFilter && row.role !== roleFilter) return false;
-      if (!needle) return true;
-      return (
-        row.heading.toLowerCase().includes(needle) ||
-        row.subheading.toLowerCase().includes(needle) ||
-        row.company.toLowerCase().includes(needle) ||
-        row.tags.some((tag) => tag.toLowerCase().includes(needle))
-      );
-    });
-
-    // Favourites stay pinned whichever sort is active.
-    return filtered.sort((a, b) => {
-      if (a.favourite !== b.favourite) return a.favourite ? -1 : 1;
-      if (sort === 'score') return (b.score ?? -1) - (a.score ?? -1);
-      if (sort === 'name') return a.heading.localeCompare(b.heading);
-      return b.updatedAt.localeCompare(a.updatedAt);
-    });
-  }, [rows, query, roleFilter, sort, source]);
 
   const toggleFavourite = async (item: SavedResume) => {
     if (!token) return;
     setBusyId(`r-${item.id}`);
     try {
-      const updated = await api.updateResume(token, item.id, { favourite: !item.favourite });
-      setItems((rows) => rows.map((row) => (row.id === item.id ? updated : row)));
+      await api.updateResume(token, item.id, { favourite: !item.favourite });
+      // Favourites are pinned to the top, so the order changed with it.
+      reload();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not update that resume.');
     } finally {
@@ -219,7 +238,7 @@ export default function SavedResumes() {
     setMenuId(null);
     try {
       await api.deleteResume(token, item.id);
-      setItems((rows) => rows.filter((row) => row.id !== item.id));
+      reload();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not delete that resume.');
     } finally {
@@ -234,8 +253,8 @@ export default function SavedResumes() {
     if (!next || next.trim() === item.filename) return;
     setBusyId(`r-${item.id}`);
     try {
-      const updated = await api.updateResume(token, item.id, { filename: next.trim() });
-      setItems((rows) => rows.map((row) => (row.id === item.id ? updated : row)));
+      await api.updateResume(token, item.id, { filename: next.trim() });
+      reload();
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not rename that resume.');
     } finally {
@@ -244,6 +263,37 @@ export default function SavedResumes() {
   };
 
   /** Base resumes download their extracted text; tailored ones the generated text. */
+  /**
+   * Open one of the stored PDFs.
+   *
+   * The link is re-fetched immediately before opening rather than reused from
+   * the list: presigned URLs expire, and a tab left open for an hour would
+   * otherwise hand the user a 403.
+   */
+  const openPdf = async (row: Row, which: 'original' | 'improved' | 'tailored') => {
+    if (!token) return;
+    setBusyId(row.key);
+    setMenuId(null);
+    try {
+      let url: string | null = null;
+      if (which === 'tailored') {
+        url = (await api.readJobMatch(token, row.match!.id)).optimized_url;
+      } else {
+        const detail = await api.readResume(token, row.base!.id);
+        url = which === 'improved' ? detail.improved_url : detail.resume_url;
+      }
+      if (!url) {
+        setError('That PDF is not stored. It may predate file storage being enabled.');
+        return;
+      }
+      setPreview({ url, title: `${row.heading} — ${LABELS[which]}` });
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not open that PDF.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const download = async (row: Row) => {
     if (!token) return;
     setBusyId(row.key);
@@ -327,7 +377,7 @@ export default function SavedResumes() {
     <>
       {head}
 
-      {items.length > 0 && (
+      {totalAll > 0 && (
         <div className="sr-toolbar">
           <input
             type="search"
@@ -361,7 +411,7 @@ export default function SavedResumes() {
 
       {error && <p className="form-alert" role="alert">{error}</p>}
 
-      {items.length === 0 ? (
+      {totalAll === 0 ? (
         <section className="card rw-empty">
           <span className="rw-empty-icon"><FileText size={22} /></span>
           <h2>No saved resumes yet</h2>
@@ -373,11 +423,11 @@ export default function SavedResumes() {
             Analyze your first resume <ArrowRight />
           </Link>
         </section>
-      ) : visible.length === 0 ? (
+      ) : total === 0 ? (
         <p className="sr-none">No resumes match that search.</p>
       ) : (
         <ul className="sr-list">
-          {visible.map((row) => (
+          {rows.map((row) => (
             <li className={`card sr-item ${busyId === row.key ? 'is-busy' : ''}`} key={row.key}>
               <span className={`sr-thumb ${row.kind === 'tailored' ? 'is-tailored' : ''}`} aria-hidden>
                 {row.kind === 'tailored' ? <Briefcase size={24} /> : <FileText size={26} />}
@@ -468,6 +518,21 @@ export default function SavedResumes() {
                         Rename
                       </button>
                     )}
+                    {row.kind === 'base' && row.base!.resume_url && (
+                      <button type="button" role="menuitem" onClick={() => openPdf(row, 'original')}>
+                        Original PDF
+                      </button>
+                    )}
+                    {row.kind === 'base' && row.base!.improved_url && (
+                      <button type="button" role="menuitem" onClick={() => openPdf(row, 'improved')}>
+                        Improved resume PDF
+                      </button>
+                    )}
+                    {row.kind === 'tailored' && row.match!.optimized_url && (
+                      <button type="button" role="menuitem" onClick={() => openPdf(row, 'tailored')}>
+                        Tailored resume PDF
+                      </button>
+                    )}
                     <button type="button" role="menuitem" onClick={() => download(row)}>
                       Download text
                     </button>
@@ -496,6 +561,15 @@ export default function SavedResumes() {
         </ul>
       )}
 
+      <Pagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onChange={setPage}
+        noun="resumes"
+        busy={listing}
+      />
+
       <section className="card sr-tip">
         <span className="sr-tip-icon"><Sparkles size={18} /></span>
         <div>
@@ -507,6 +581,14 @@ export default function SavedResumes() {
         </div>
         <Link className="btn btn-ghost" to="/dashboard/analysis">Analyze another</Link>
       </section>
+
+      {preview && (
+        <PdfPreview
+          url={preview.url}
+          title={preview.title}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </>
   );
 }
