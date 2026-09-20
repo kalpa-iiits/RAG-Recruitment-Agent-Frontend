@@ -1,0 +1,211 @@
+.rw-head { margin-bottom: 20px; }
+.rw-head h1 { font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
+.rw-head p { margin-top: 6px; font-size: 15px; color: var(--muted); }
+
+.rw-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.rw-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.rw-doc { padding: 20px; }
+.rw-doc h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.rw-doc pre {
+  margin: 0;
+  max-height: 560px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  font-family: inherit;
+  font-size: 13.2px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rw-doc.is-improved { border-color: color-mix(in srgb, var(--green) 32%, transparent); }
+.rw-doc.is-improved pre {
+  background: color-mix(in srgb, var(--green) 6%, var(--surface));
+  border-color: color-mix(in srgb, var(--green) 20%, transparent);
+}
+
+.rw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* ---- sidebar ---- */
+
+.rw-aside { display: flex; flex-direction: column; gap: 18px; }
+
+.rw-areas { padding: 20px; }
+.rw-areas h2 { margin-bottom: 16px; font-size: 17px; font-weight: 700; }
+.rw-areas ul { display: flex; flex-direction: column; gap: 16px; }
+.rw-areas li { display: flex; gap: 13px; }
+.rw-area-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--brand-050);
+  color: var(--brand);
+  flex: none;
+}
+.rw-areas strong { display: block; font-size: 14.5px; color: var(--ink); }
+.rw-areas em { display: block; margin-top: 2px; font-style: normal; font-size: 12.8px; color: var(--muted); line-height: 1.5; }
+.rw-areas-note {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12.8px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.rw-tip {
+  padding: 18px;
+  background: color-mix(in srgb, var(--purple) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--purple) 20%, transparent);
+}
+.rw-tip h3 { font-size: 15px; font-weight: 700; color: var(--purple); }
+.rw-tip p { margin-top: 8px; font-size: 13.8px; color: var(--text); line-height: 1.65; }
+
+/* ---- generate panel ---- */
+
+.rw-generate { padding: 26px 24px 24px; }
+.rw-generate h2 { font-size: 19px; font-weight: 700; }
+.rw-generate > p { margin-top: 8px; margin-bottom: 20px; font-size: 14.5px; color: var(--muted); line-height: 1.6; }
+.rw-generate .btn { width: 100%; height: 46px; margin-top: 4px; }
+/* ---- changes summary ---- */
+
+.rw-stats { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-bottom: 16px; }
+.rw-stats li { font-size: 14px; color: var(--muted); }
+.rw-stats strong { color: var(--ink); font-size: 16px; margin-right: 4px; }
+.rw-stats .is-add strong { color: var(--green); }
+.rw-stats .is-remove strong { color: var(--brand); }
+
+.rw-diff {
+  max-height: 560px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 8px 0;
+  background: var(--surface-2);
+}
+.rw-diff-line {
+  display: flex;
+  gap: 10px;
+  padding: 2px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.rw-diff-line > span { flex: none; width: 10px; color: var(--muted); font-weight: 700; }
+.rw-diff-line.is-add { background: color-mix(in srgb, var(--green) 12%, transparent); }
+.rw-diff-line.is-add > span { color: var(--green); }
+.rw-diff-line.is-remove { background: color-mix(in srgb, var(--brand) 10%, transparent); }
+.rw-diff-line.is-remove > span { color: var(--brand); }
+.rw-diff-line.is-remove { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+
+/* ---- download + actions ---- */
+
+.rw-download-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.rw-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+.rw-apply-note { margin-top: 10px; font-size: 12.8px; color: var(--muted); }
+
+.rw-applied {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--green-bg);
+  border: 1px solid color-mix(in srgb, var(--green) 24%, transparent);
+  font-size: 14px;
+  color: var(--text);
+}
+.rw-applied a { color: var(--brand); font-weight: 600; }
+.rw-applied a:hover { text-decoration: underline; }
+
+/* ---- empty ---- */
+
+.rw-empty { padding: 40px 32px; text-align: center; }
+.rw-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: var(--brand-050);
+  color: var(--brand);
+}
+.rw-generate .rw-empty-icon { margin: 0 0 16px; }
+.rw-empty h2 { font-size: 20px; font-weight: 700; }
+.rw-empty p { max-width: 430px; margin: 10px auto 0; font-size: 14.5px; color: var(--muted); line-height: 1.6; }
+.rw-empty .btn { margin-top: 20px; }
+
+@media (max-width: 1240px) {
+  .rw-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .rw-compare { grid-template-columns: 1fr; }
+  .rw-head h1 { font-size: 24px; }
+}
+
+.rw-areas details { margin-top: 8px; }
+.rw-areas summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand);
+  list-style: none;
+}
+.rw-areas summary::-webkit-details-marker { display: none; }
+.rw-areas summary::before { content: '▸ '; }
+.rw-areas details[open] summary::before { content: '▾ '; }
+.rw-area-suggestions { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.rw-area-suggestions li {
+  display: list-item;
+  position: relative;
+  padding-left: 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.rw-area-suggestions li::before { content: '•'; position: absolute; left: 2px; color: var(--brand); }
+
+.rw-areas-empty p { font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+.rw-areas-empty .btn { width: 100%; margin-top: 14px; }
+.rw-areas .ra-link { margin-top: 16px; }

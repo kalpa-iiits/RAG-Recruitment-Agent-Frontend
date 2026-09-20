@@ -1,0 +1,292 @@
+.ip-head { margin-bottom: 22px; }
+.ip-head h1 { margin-top: 8px; font-size: 32px; font-weight: 800; letter-spacing: -.035em; line-height: 1.12; }
+.ip-head p { margin-top: 8px; font-size: 15.5px; color: var(--muted); }
+
+/* ---- controls ---- */
+
+.ip-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.ip-control {
+  display: block;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.ip-control > span { display: block; font-size: 12px; color: var(--muted); }
+.ip-control select {
+  width: 100%;
+  margin-top: 2px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 0;
+}
+.ip-control select:focus { outline: none; }
+
+.ip-generate { padding: 14px 26px; font-size: 15px; }
+
+.ip-types {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.ip-types > span { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.ip-types button {
+  padding: 6px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+.ip-types button:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ip-types button.is-on {
+  background: var(--brand-050);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.ip-key { max-width: 320px; margin-bottom: 16px; }
+.ip-note { margin-bottom: 14px; font-size: 13px; color: var(--muted); }
+
+/* ---- layout ---- */
+
+.ip-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 18px;
+  align-items: start;
+}
+.ip-aside { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---- question card ---- */
+
+.ip-question { padding: 22px 24px 24px; }
+.ip-question > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ip-question h2 { font-size: 17px; font-weight: 700; }
+
+.ip-nav { display: flex; gap: 8px; }
+.ip-nav button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.ip-nav button:hover { color: var(--brand); border-color: var(--brand); }
+
+.ip-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.tag-plain { background: var(--surface-2); color: var(--muted); }
+.tag-plain::before { display: none; }
+
+.ip-question h3 {
+  margin-top: 16px;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -.02em;
+}
+
+.ip-answer, .ip-hint { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.ip-answer h4, .ip-hint h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ip-answer p {
+  margin-top: 11px;
+  padding: 14px 16px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  font-size: 14.5px;
+  color: var(--text);
+  line-height: 1.7;
+  white-space: pre-line;
+}
+.ip-hint h4 { color: var(--brand); }
+.ip-hint p {
+  margin-top: 9px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  background: var(--brand-050);
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.ip-question footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+.ip-question footer .btn { flex: 1; min-width: 150px; height: 48px; }
+.ip-question footer .btn-primary { flex: 1.2; }
+
+.ip-empty { padding: 48px 32px; text-align: center; }
+.ip-empty h2 { font-size: 20px; font-weight: 700; }
+.ip-empty p { max-width: 420px; margin: 10px auto 0; font-size: 14.5px; color: var(--muted); line-height: 1.6; }
+
+/* ---- readiness ---- */
+
+.ip-readiness { padding: 20px; }
+.ip-readiness h2 { font-size: 17px; font-weight: 700; margin-bottom: 14px; }
+.ip-readiness-body { display: flex; align-items: center; gap: 20px; }
+.ip-ring { position: relative; width: 116px; height: 116px; flex: none; }
+.ip-ring svg { width: 100%; height: 100%; }
+.ip-ring > span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.ip-ring strong { font-size: 24px; font-weight: 700; color: var(--ink); letter-spacing: -.03em; }
+.ip-ring em { font-style: normal; font-size: 12.5px; color: var(--muted); }
+.ip-readiness-title { display: block; font-size: 15px; color: var(--brand); }
+.ip-readiness-body p { margin-top: 6px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+
+/* ---- skills ---- */
+
+.ip-skills { padding: 20px; }
+.ip-skills-sub { margin: -6px 0 14px; font-size: 12.8px; color: var(--muted); line-height: 1.5; }
+.ip-skills ul { display: flex; flex-direction: column; gap: 11px; max-height: 340px; overflow-y: auto; }
+.ip-skills li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 94px 40px;
+  align-items: center;
+  gap: 10px;
+}
+.ip-skills label { display: flex; align-items: center; gap: 9px; min-width: 0; cursor: pointer; }
+.ip-skills input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--brand); flex: none; }
+.ip-skill-name {
+  font-size: 13.8px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ip-skill-bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.ip-skill-bar i { display: block; height: 100%; border-radius: 999px; }
+.ip-skill-bar i.is-high { background: #22b356; }
+.ip-skill-bar i.is-mid { background: #f5a524; }
+.ip-skill-bar i.is-low { background: #ef4444; }
+.ip-skill-score { font-size: 13px; color: var(--muted); text-align: right; }
+
+/* ---- recommendation ---- */
+
+.ip-reco {
+  padding: 18px;
+  background: var(--blush);
+  border-color: color-mix(in srgb, var(--brand) 16%, transparent);
+}
+.ip-reco h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand);
+}
+.ip-reco p { margin-top: 8px; font-size: 13.8px; color: var(--text); line-height: 1.65; }
+.ip-reco .ra-link { margin-top: 12px; }
+
+@media (max-width: 1240px) {
+  .ip-grid { grid-template-columns: 1fr; }
+  .ip-aside { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+}
+@media (max-width: 900px) {
+  .ip-controls { grid-template-columns: 1fr 1fr; }
+  .ip-generate { grid-column: 1 / -1; }
+  .ip-aside { grid-template-columns: 1fr; }
+  .ip-head h1 { font-size: 24px; }
+  .ip-question h3 { font-size: 19px; }
+}
+@media (max-width: 560px) {
+  .ip-controls { grid-template-columns: 1fr; }
+  .ip-question footer .btn { flex-basis: 100%; }
+}
+
+.ip-composition { margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+
+.ip-stale {
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--amber-bg);
+  border: 1px solid color-mix(in srgb, var(--amber) 24%, transparent);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.tag-green { background: var(--green-bg); color: var(--green); }
+
+.ip-topics {
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.ip-topics-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ip-topics-head > span:first-child { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.ip-topics-hint { font-size: 12.5px; color: var(--muted); }
+.ip-topics-head .ra-link { margin-left: auto; font-size: 12.5px; }
+
+.ip-topic-group + .ip-topic-group { margin-top: 12px; }
+.ip-topic-group h4 {
+  margin-bottom: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ip-topic-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ip-topic-chips button {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.8px;
+}
+.ip-topic-chips button:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+.ip-topic-chips button.is-on {
+  background: var(--brand-050);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.ip-controls { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.ip-composition-topics { color: var(--green); }

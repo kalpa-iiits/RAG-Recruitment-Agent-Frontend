@@ -1,0 +1,52 @@
+.tm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.tm {
+  margin: 0;
+  padding: 20px;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+.tm:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+
+.tm-top { display: flex; gap: 16px; }
+
+.tm-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.tm-avatar.tone-blue { background: var(--blue-bg); color: var(--blue); }
+.tm-avatar.tone-red { background: var(--brand-050); color: var(--brand); }
+.tm-avatar.tone-green { background: var(--green-bg); color: var(--green); }
+
+.tm blockquote {
+  margin: 0;
+  font-size: 13.6px;
+  line-height: 1.62;
+  color: var(--text);
+}
+
+.tm figcaption {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 16px;
+}
+/* natural width — a fixed box makes the wider wordmarks spill over the name */
+.tm-logo { flex: none; display: inline-flex; align-items: center; color: #1a1a1a; }
+.tm figcaption > span:last-child { min-width: 0; }
+.tm figcaption strong { display: block; font-size: 13.5px; color: var(--ink); }
+.tm figcaption em { display: block; font-style: normal; font-size: 12px; color: var(--muted); }
+
+[data-theme='dark'] .tm-logo { color: #e6ebf2; }
+
+@media (max-width: 980px) { .tm-grid { grid-template-columns: 1fr; max-width: 620px; } }
