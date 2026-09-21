@@ -1,0 +1,118 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ master ]
+  # Lets a deploy be re-run from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A superseded build has nothing worth finishing: only the newest commit
+# should reach the bucket, so an in-flight run is cancelled rather than
+# racing the one behind it.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-southeast-2
+      # The static-website bucket the domain's CNAME points at. Not a secret:
+      # it is the public hostname.
+      S3_BUCKET: www.cvexpert.in
+      # .env.production is gitignored, so the build cannot read it here.
+      # Vite inlines any VITE_-prefixed variable from the environment, which
+      # makes this the one place the deployed API origin is defined.
+      VITE_API_BASE_URL: https://api.cvexpert.in
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        cache: npm
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Lint
+      run: npm run lint
+
+    # tsc -b runs first, so a type error fails here instead of shipping.
+    - name: Build
+      run: npm run build
+
+    - name: Configure AWS credentials (access keys)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    # Three passes, in this order, so a visitor never loads an index.html
+    # whose bundle is not in the bucket yet: the new assets go up first, then
+    # index.html flips over to them, and only then is the old build removed.
+    # Each pass sets its own Cache-Control, so a re-upload can never strip the
+    # headers an earlier pass applied.
+    - name: Upload new assets
+      run: |
+        set -euo pipefail
+
+        # Filenames carry a content hash, so a new build is a new URL and
+        # these can be cached for as long as the browser likes. No --delete:
+        # the live index.html still points at the previous bundle.
+        aws s3 sync dist/ "s3://$S3_BUCKET" \
+          --exclude "*" --include "assets/*" \
+          --cache-control "public, max-age=31536000, immutable"
+
+    - name: Publish index.html and static files
+      run: |
+        set -euo pipefail
+
+        # The cutover. index.html must never be cached: it is the only file
+        # that names the current bundle, so a stale copy would pin visitors
+        # to the old release.
+        aws s3 sync dist/ "s3://$S3_BUCKET" --delete \
+          --exclude "assets/*" \
+          --cache-control "no-cache"
+
+    - name: Remove assets from previous builds
+      run: |
+        set -euo pipefail
+
+        # Safe now that index.html references the new bundle. Same flags as
+        # the first pass, so anything re-uploaded keeps the immutable header.
+        aws s3 sync dist/ "s3://$S3_BUCKET" --delete \
+          --exclude "*" --include "assets/*" \
+          --cache-control "public, max-age=31536000, immutable"
+
+    - name: Verify the site is serving the new build
+      run: |
+        set -euo pipefail
+
+        # The bundle the build just produced, as index.html references it.
+        BUNDLE=$(grep -o 'assets/index-[^"]*\.js' dist/index.html | head -1)
+        echo "Expecting $BUNDLE"
+
+        # The website endpoint, not the bucket REST endpoint: only the former
+        # applies the index/error-document rules the SPA relies on.
+        SITE="http://$S3_BUCKET.s3-website-$AWS_REGION.amazonaws.com"
+
+        for i in $(seq 1 10); do
+          if curl -fsS "$SITE" | grep -q "$BUNDLE"; then
+            echo "Live: $SITE is serving $BUNDLE"
+            exit 0
+          fi
+          sleep 3
+        done
+
+        echo "::error::$SITE is not serving $BUNDLE after 30s."
+        exit 1
