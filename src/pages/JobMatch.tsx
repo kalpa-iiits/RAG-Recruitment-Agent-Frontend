@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   ArrowRight,
+  BarChart,
   Briefcase,
   Download,
   Eye,
@@ -66,7 +67,7 @@ function Donut({ score, label }: { score: number; label: string }) {
 
 export default function JobMatch() {
   const { token } = useAuth();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   // Saved Resumes links here with ?match=<id> to open a specific job.
   const requestedId = Number(params.get('match')) || null;
 
@@ -75,6 +76,8 @@ export default function JobMatch() {
   const [staleResumeId, setStaleResumeId] = useState<number | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [current, setCurrent] = useState<Match | null>(null);
+  /** The Match Analysis panel, so opening a listed job can scroll to it. */
+  const analysisPanel = useRef<HTMLElement>(null);
 
   // The list is server-paginated: one page of rows plus the count behind it.
   const [items, setItems] = useState<Match[]>([]);
@@ -231,6 +234,22 @@ export default function JobMatch() {
       setBusy(null);
       setBusyId(null);
     }
+  };
+
+  /**
+   * Show a listed job in the Match Analysis panel above.
+   *
+   * The row already carries everything the panel renders, so it swaps in
+   * straight away; the URL is updated alongside it so a reload — or a shared
+   * link — reopens the same job.
+   */
+  const openMatch = (match: Match) => {
+    setError(null);
+    setCurrent(match);
+    setParams(match.id === requestedId ? params : { match: String(match.id) }, { replace: true });
+    // Without this the panel is off-screen above the list and the click looks
+    // like it did nothing.
+    analysisPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   /**
@@ -416,7 +435,7 @@ export default function JobMatch() {
           </button>
         </section>
 
-        <section className="card jm-panel">
+        <section className="card jm-panel" ref={analysisPanel}>
           <div className="ov-card-head">
             <h2>Match Analysis</h2>
             <Link to="/dashboard/analysis">See full analysis <ArrowRight size={14} /></Link>
@@ -557,6 +576,15 @@ export default function JobMatch() {
                 </div>
 
                 <div className="jm-job-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => openMatch(match)}
+                    disabled={busyId === match.id}
+                    aria-current={current?.id === match.id ? 'true' : undefined}
+                  >
+                    <BarChart size={15} /> View Match
+                  </button>
                   <button
                     type="button"
                     className="btn btn-ghost"

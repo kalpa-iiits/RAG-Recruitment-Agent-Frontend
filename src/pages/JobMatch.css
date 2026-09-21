@@ -207,8 +207,10 @@
 .jm-job-skills h4 { font-size: 12px; font-weight: 600; color: var(--muted); }
 .jm-job-skills .jm-chips { margin-top: 8px; }
 
-.jm-job-actions { display: flex; align-items: center; gap: 8px; }
+.jm-job-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
 .jm-job-actions .btn { padding: 9px 14px; font-size: 13px; }
+/* The job currently shown in the Match Analysis panel above. */
+.jm-job-actions .btn[aria-current] { border-color: var(--brand); color: var(--brand); }
 .jm-delete {
   display: grid;
   place-items: center;
