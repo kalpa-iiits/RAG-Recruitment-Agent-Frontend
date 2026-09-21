@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import * as api from '../lib/api';
-import { ApiError, type User } from '../lib/api';
+import type { User } from '../lib/api';
 import { AuthContext, type AuthContextValue } from './context';
 
 const TOKEN_KEY = 'cvexpert-token';
@@ -41,14 +41,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       .then((profile) => {
         if (!cancelled) setUser(profile);
       })
-      .catch((error) => {
+      .catch(() => {
         if (cancelled) return;
-        // Only drop the token if the server actually rejected it — a network
-        // blip shouldn't sign the user out.
-        if (error instanceof ApiError && error.status === 401) {
-          writeToken(null);
-          setToken(null);
-        }
+        // A rejected token is dropped by the unauthorized handler below; a
+        // network blip lands here too, and shouldn't sign the user out.
         setUser(null);
       })
       .finally(() => {
@@ -59,6 +55,41 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [token, checkedToken]);
+
+  const clearSession = useCallback(() => {
+    writeToken(null);
+    setToken(null);
+    setCheckedToken(null);
+    setUser(null);
+  }, []);
+
+  // Any call that comes back 401 means the session is over — drop it here and
+  // RequireAuth redirects to /login on the next render, with no reload needed.
+  useEffect(() => {
+    api.setUnauthorizedHandler(clearSession);
+    return () => api.setUnauthorizedHandler(null);
+  }, [clearSession]);
+
+  // A tab left open past the token's lifetime makes no requests, so it would
+  // keep showing a signed-in shell until something was clicked. Re-check when
+  // it comes back to the foreground; a 401 lands in the handler above.
+  useEffect(() => {
+    if (!token) return;
+
+    const revalidate = () => {
+      if (document.visibilityState !== 'visible') return;
+      api.me(token).catch(() => {
+        /* 401 signs out via the handler; anything else is a blip worth ignoring */
+      });
+    };
+
+    window.addEventListener('focus', revalidate);
+    document.addEventListener('visibilitychange', revalidate);
+    return () => {
+      window.removeEventListener('focus', revalidate);
+      document.removeEventListener('visibilitychange', revalidate);
+    };
+  }, [token]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const issued = await api.login(email, password);
@@ -77,12 +108,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     [signIn],
   );
 
-  const signOut = useCallback(() => {
-    writeToken(null);
-    setToken(null);
-    setCheckedToken(null);
-    setUser(null);
-  }, []);
+  const signOut = clearSession;
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, token, status, signIn, signUp, signOut }),

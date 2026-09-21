@@ -55,15 +55,61 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(message, response.status);
 }
 
-async function request<T>(path: string, init: RequestInit): Promise<T> {
+type UnauthorizedHandler = () => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * Registers what happens when the server rejects the session token.
+ *
+ * AuthProvider uses it to clear the session the moment any call comes back
+ * 401, so an expired token lands on /login straight away rather than leaving
+ * the page sitting there until someone reloads it.
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
+}
+
+/**
+ * A 401 only means "the session is gone" when we actually sent a token.
+ * Signing in and the password forms answer 401 for a wrong password, and
+ * neither of those should throw the user out.
+ */
+function isSessionExpiry(init: RequestInit, response: Response): boolean {
+  return response.status === 401 && new Headers(init.headers).has('Authorization');
+}
+
+/**
+ * One fetch for every endpoint, so the expired-session check happens in a
+ * single place.
+ *
+ * `credentialCheck` marks the calls where a 401 is about the password the
+ * user just typed rather than about the session carrying the request.
+ */
+async function send(path: string, init: RequestInit, credentialCheck = false): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, init);
   } catch {
     throw new ApiError('Could not reach the server. Is the backend running?', 0);
   }
+  if (!credentialCheck && isSessionExpiry(init, response)) unauthorizedHandler?.();
   if (!response.ok) throw await toApiError(response);
+  return response;
+}
+
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await send(path, init);
   return response.json() as Promise<T>;
+}
+
+/** For the 204 endpoints, which have no body to parse. */
+async function requestVoid(
+  path: string,
+  init: RequestInit,
+  credentialCheck = false,
+): Promise<void> {
+  await send(path, init, credentialCheck);
 }
 
 /**
@@ -399,14 +445,8 @@ export async function getQaHistory(token: string): Promise<QaMessage[]> {
 }
 
 /** DELETE /api/qa-history — 204, so there's no body to parse. */
-export async function clearQaHistory(token: string): Promise<void> {
-  const response = await fetch(`${BASE_URL}/api/qa-history`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => {
-    throw new ApiError('Could not reach the server.', 0);
-  });
-  if (!response.ok) throw await toApiError(response);
+export function clearQaHistory(token: string): Promise<void> {
+  return requestVoid('/api/qa-history', { method: 'DELETE', ...authed(token) });
 }
 
 /** POST /api/ask — answers from the analysed resume; 409 before any analysis. */
@@ -478,14 +518,8 @@ export function updateResume(
 }
 
 /** DELETE /api/resumes/{id} — 204, so there is no body to parse. */
-export async function deleteResume(token: string, id: number): Promise<void> {
-  const response = await fetch(`${BASE_URL}/api/resumes/${id}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => {
-    throw new ApiError('Could not reach the server.', 0);
-  });
-  if (!response.ok) throw await toApiError(response);
+export function deleteResume(token: string, id: number): Promise<void> {
+  return requestVoid(`/api/resumes/${id}`, { method: 'DELETE', ...authed(token) });
 }
 
 /**
@@ -549,19 +583,20 @@ export function updateProfile(
 }
 
 /** POST /api/profile/password — 204, or 401 when the current password is wrong. */
-export async function changePassword(
+export function changePassword(
   token: string,
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const response = await fetch(`${BASE_URL}/api/profile/password`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
-  }).catch(() => {
-    throw new ApiError('Could not reach the server.', 0);
-  });
-  if (!response.ok) throw await toApiError(response);
+  return requestVoid(
+    '/api/profile/password',
+    {
+      method: 'POST',
+      headers: { ...authed(token).headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    },
+    true,
+  );
 }
 
 /** GET /api/profile/export — everything stored about the account. */
@@ -570,15 +605,16 @@ export function exportAccount(token: string): Promise<unknown> {
 }
 
 /** POST /api/profile/delete — irreversible; the password is the confirmation. */
-export async function deleteAccount(token: string, password: string): Promise<void> {
-  const response = await fetch(`${BASE_URL}/api/profile/delete`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
-  }).catch(() => {
-    throw new ApiError('Could not reach the server.', 0);
-  });
-  if (!response.ok) throw await toApiError(response);
+export function deleteAccount(token: string, password: string): Promise<void> {
+  return requestVoid(
+    '/api/profile/delete',
+    {
+      method: 'POST',
+      headers: { ...authed(token).headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    },
+    true,
+  );
 }
 
 /* -------------------------------------------------------------------------
@@ -683,14 +719,8 @@ export function generateJobResume(
   });
 }
 
-export async function deleteJobMatch(token: string, id: number): Promise<void> {
-  const response = await fetch(`${BASE_URL}/api/job-match/${id}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${token}` },
-  }).catch(() => {
-    throw new ApiError('Could not reach the server.', 0);
-  });
-  if (!response.ok) throw await toApiError(response);
+export function deleteJobMatch(token: string, id: number): Promise<void> {
+  return requestVoid(`/api/job-match/${id}`, { method: 'DELETE', ...authed(token) });
 }
 
 /* -------------------------------------------------------------------------
