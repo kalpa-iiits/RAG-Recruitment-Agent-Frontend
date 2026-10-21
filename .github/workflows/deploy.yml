@@ -25,6 +25,10 @@ jobs:
       # The static-website bucket the domain's CNAME points at. Not a secret:
       # it is the public hostname.
       S3_BUCKET: www.cvexpert.in
+      # The CloudFront distribution in front of the bucket. It caches
+      # index.html at the edge, so every deploy has to invalidate it.
+      CLOUDFRONT_DISTRIBUTION_ID: E2Q5YSU2MV9KDN
+      CLOUDFRONT_DOMAIN: d26vy3eqmzkt7r.cloudfront.net
       # .env.production is gitignored, so the build cannot read it here.
       # Vite inlines any VITE_-prefixed variable from the environment, which
       # makes this the one place the deployed API origin is defined.
@@ -94,6 +98,23 @@ jobs:
           --exclude "*" --include "assets/*" \
           --cache-control "public, max-age=31536000, immutable"
 
+    # Hashed assets never need this (a new build is a new URL), but the edge
+    # still holds the previous index.html and other unhashed files. "/*"
+    # counts as a single invalidation path, so it costs the same as one file.
+    - name: Invalidate CloudFront cache
+      run: |
+        set -euo pipefail
+
+        INVALIDATION_ID=$(aws cloudfront create-invalidation \
+          --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+          --paths "/*" \
+          --query 'Invalidation.Id' --output text)
+        echo "Invalidation $INVALIDATION_ID created"
+
+        aws cloudfront wait invalidation-completed \
+          --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+          --id "$INVALIDATION_ID"
+
     - name: Verify the site is serving the new build
       run: |
         set -euo pipefail
@@ -102,17 +123,24 @@ jobs:
         BUNDLE=$(grep -o 'assets/index-[^"]*\.js' dist/index.html | head -1)
         echo "Expecting $BUNDLE"
 
-        # The website endpoint, not the bucket REST endpoint: only the former
-        # applies the index/error-document rules the SPA relies on.
-        SITE="http://$S3_BUCKET.s3-website-$AWS_REGION.amazonaws.com"
+        # Through CloudFront, so a stale edge copy fails the deploy. A deep
+        # link, not just "/", so the SPA fallback (403/404 -> index.html) is
+        # checked too.
+        SITE="https://$CLOUDFRONT_DOMAIN"
 
-        for i in $(seq 1 10); do
-          if curl -fsS "$SITE" | grep -q "$BUNDLE"; then
-            echo "Live: $SITE is serving $BUNDLE"
-            exit 0
+        for path in / /dashboard; do
+          ok=false
+          for i in $(seq 1 10); do
+            if curl -fsS "$SITE$path" | grep -q "$BUNDLE"; then
+              echo "Live: $SITE$path is serving $BUNDLE"
+              ok=true
+              break
+            fi
+            sleep 3
+          done
+
+          if [ "$ok" != true ]; then
+            echo "::error::$SITE$path is not serving $BUNDLE after 30s."
+            exit 1
           fi
-          sleep 3
         done
-
-        echo "::error::$SITE is not serving $BUNDLE after 30s."
-        exit 1
