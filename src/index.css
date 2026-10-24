@@ -67,6 +67,9 @@
 
 html { scroll-behavior: smooth; }
 
+/* Keeps in-page anchor targets clear of the sticky navbar. */
+section[id] { scroll-margin-top: 72px; }
+
 body {
   margin: 0;
   background: var(--page);

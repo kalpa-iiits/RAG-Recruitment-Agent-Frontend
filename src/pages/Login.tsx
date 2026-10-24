@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { GoogleG, Logo } from '../components/Icons';
 import MountainArt from '../components/MountainArt';
+import Seo from '../components/Seo';
 import { useAuth } from '../auth/context';
 import { ApiError } from '../lib/api';
 import './Login.css';
@@ -92,6 +93,7 @@ export default function Login() {
 
   return (
     <div className="auth">
+      <Seo title={isSignup ? 'Sign up — CVExpert' : 'Log in — CVExpert'} path="/login" noindex />
       <div className="auth-shell">
         <aside className="auth-brand">
           <MountainArt className="auth-art" />

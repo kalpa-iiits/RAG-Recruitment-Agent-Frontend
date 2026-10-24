@@ -1,0 +1,37 @@
+.ats { background: var(--surface-2); }
+
+.ats-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+.ats-copy h2 { margin-top: 12px; font-size: 32px; font-weight: 700; }
+.ats-copy p { margin-top: 16px; font-size: 15px; line-height: 1.7; }
+.ats-copy strong { color: var(--ink); }
+.ats-copy .btn { margin-top: 26px; }
+
+.ats-checks {
+  padding: 26px 26px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.ats-checks h3 { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+.ats-checks li {
+  display: flex;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.ats-checks li svg { flex: none; margin-top: 2px; color: var(--green); }
+.ats-checks li strong { display: block; color: var(--ink); font-size: 14.5px; margin-bottom: 2px; }
+
+@media (max-width: 900px) {
+  .ats-grid { grid-template-columns: 1fr; gap: 32px; }
+  .ats-copy h2 { font-size: 26px; }
+}

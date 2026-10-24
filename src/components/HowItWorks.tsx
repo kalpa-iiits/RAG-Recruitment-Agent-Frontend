@@ -6,7 +6,7 @@ const steps = [
     icon: Upload,
     tone: 'red',
     title: '1. Upload Your Resume',
-    body: 'Upload your resume (PDF or DOCX) in seconds.',
+    body: 'Upload your resume as a PDF in seconds.',
   },
   {
     icon: TrendUp,
@@ -33,7 +33,7 @@ export default function HowItWorks() {
     <section className="section how" id="how">
       <div className="container">
         <div className="section-head">
-          <h2>How CVExpert Works</h2>
+          <h2>How to Check Your Resume ATS Score</h2>
           <p>Get from your resume to more interviews in 4 simple steps.</p>
         </div>
 

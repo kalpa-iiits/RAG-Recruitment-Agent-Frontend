@@ -13,7 +13,7 @@ export default function FinalCta() {
         </div>
 
         <div className="finalcta-actions">
-          <Link className="btn btn-primary btn-lg" to="/login?tab=signup"><Upload /> Analyze My Resume</Link>
+          <Link className="btn btn-primary btn-lg" to="/login?tab=signup"><Upload /> Check My ATS Score</Link>
           <a className="btn btn-ghost btn-lg" href="#sample"><Play /> View Sample Report</a>
         </div>
       </div>

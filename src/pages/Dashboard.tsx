@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import Seo from '../components/Seo';
 import {
   Bell,
   Bookmark,
@@ -59,6 +60,7 @@ export default function Dashboard({ theme, onThemeChange }: Props) {
 
   return (
     <div className="dsh">
+      <Seo title="Dashboard — CVExpert" noindex />
       <aside className="dsh-side">
         <Link className="dsh-brand" to="/">
           <Logo size={30} />

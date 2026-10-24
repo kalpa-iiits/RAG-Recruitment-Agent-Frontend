@@ -34,6 +34,12 @@ export const Moon = ({ size = 17 }: P) => (
 export const ChevronDown = ({ size = 15 }: P) => (
   <svg {...base(size)} aria-hidden><path d="m6 9 6 6 6-6" /></svg>
 );
+export const Menu = ({ size = 22 }: P) => (
+  <svg {...base(size)} aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+);
+export const Close = ({ size = 22 }: P) => (
+  <svg {...base(size)} aria-hidden><path d="M6 6l12 12M18 6 6 18" /></svg>
+);
 export const ChevronLeft = ({ size = 18 }: P) => (
   <svg {...base(size)} aria-hidden><path d="m15 18-6-6 6-6" /></svg>
 );

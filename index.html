@@ -1,14 +1,88 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Defaults for crawlers that read the raw HTML. Pages override title,
+         description and canonical at runtime through src/components/Seo.tsx. -->
+    <title>Free ATS Resume Checker &amp; Score — AI Resume Analyzer | CVExpert</title>
     <meta
       name="description"
-      content="CVExpert gives you recruiter-grade ATS analysis, AI resume improvements, interview questions and job matching — in under 60 seconds."
+      content="Check your resume's ATS score free in under 60 seconds. CVExpert's AI resume checker finds missing keywords, fixes formatting, rewrites bullet points and matches your CV to any job description."
     />
-    <title>CVExpert — Land More Interviews</title>
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#e7352b" />
+    <link rel="canonical" href="https://www.cvexpert.in/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CVExpert" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" content="https://www.cvexpert.in/" />
+    <meta property="og:title" content="Free ATS Resume Checker & Score — CVExpert" />
+    <meta
+      property="og:description"
+      content="Get your ATS resume score, missing keywords and AI rewrite suggestions in under 60 seconds."
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Free ATS Resume Checker & Score — CVExpert" />
+    <meta
+      name="twitter:description"
+      content="Get your ATS resume score, missing keywords and AI rewrite suggestions in under 60 seconds."
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.cvexpert.in/#org",
+            "name": "CVExpert",
+            "url": "https://www.cvexpert.in/",
+            "logo": "https://www.cvexpert.in/favicon.svg"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.cvexpert.in/#website",
+            "name": "CVExpert",
+            "url": "https://www.cvexpert.in/",
+            "publisher": { "@id": "https://www.cvexpert.in/#org" }
+          },
+          {
+            "@type": "WebApplication",
+            "name": "CVExpert ATS Resume Checker",
+            "url": "https://www.cvexpert.in/",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web",
+            "description": "AI resume checker that scores your resume against applicant tracking systems, finds missing keywords, rewrites bullet points and matches your resume to job descriptions.",
+            "featureList": [
+              "ATS resume score",
+              "Resume keyword gap analysis",
+              "AI resume rewrite",
+              "Resume vs job description match",
+              "AI interview question generator"
+            ],
+            "offers": [
+              { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "INR" },
+              { "@type": "Offer", "name": "Pro", "price": "499", "priceCurrency": "INR" }
+            ],
+            "publisher": { "@id": "https://www.cvexpert.in/#org" }
+          }
+        ]
+      }
+    </script>
+
+    <!-- Applies the saved theme before the prerendered markup paints, so dark
+         mode users don't see a light flash. Mirrors src/hooks/useTheme.ts. -->
+    <script>
+      try {
+        var t = localStorage.getItem('cvexpert-theme');
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>

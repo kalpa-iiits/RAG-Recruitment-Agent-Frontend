@@ -145,6 +145,7 @@
   align-items: start;
 }
 .pr-faq-item { padding: 0; overflow: hidden; }
+.pr-faq-item h3 { font: inherit; letter-spacing: normal; }
 .pr-faq-item button {
   display: flex;
   align-items: center;

@@ -60,12 +60,64 @@
   color: var(--ink);
 }
 
+.nav-burger {
+  display: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.nav-mobile {
+  border-top: 1px solid var(--line);
+  background: var(--page);
+  box-shadow: var(--shadow-md);
+}
+.nav-mobile .container {
+  display: flex;
+  flex-direction: column;
+  padding-block: 8px 14px;
+}
+.nav-mobile a {
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.nav-mobile a:last-child { border-bottom: 0; }
+.nav-mobile a:hover { color: var(--brand); }
+.nav-mobile-login,
+.nav-mobile-theme { display: none; }
+.nav-mobile-theme {
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 2px 0;
+  font-size: 15.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+@media (min-width: 1081px) { .nav-mobile { display: none; } }
+
 @media (max-width: 1080px) {
   .nav-links { display: none; }
+  .nav-burger { display: grid; }
   .nav-inner { justify-content: space-between; }
 }
 @media (max-width: 560px) {
   .nav-login { display: none; }
+  .nav-mobile-login { display: block; }
+  .nav-mobile a.nav-mobile-login { border-bottom: 1px solid var(--line); }
+  .nav-mobile-theme { display: flex; }
+  /* Room is tight here: the theme switch moves into the menu and the menu
+     button goes to the far right, after Get Started. */
+  .nav-actions > .theme-toggle { display: none; }
+  .nav-burger { order: 1; }
   .nav-inner { gap: 12px; }
+  .nav-actions { gap: 8px; }
   .nav-actions .theme-toggle { margin-right: 0; }
 }

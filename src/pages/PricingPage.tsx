@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import Seo from '../components/Seo';
+import { PAGE_SEO } from '../lib/seo';
 import { ArrowRight, BadgeCheck, CardIcon, ChevronDown, Crown, Lock, Users, Zap } from '../components/Icons';
 import type { Theme } from '../hooks/useTheme';
 import { PLANS, PRO_MONTHLY, PRO_YEARLY_PER_MONTH, PRO_YEARLY_TOTAL, rupees } from '../lib/plans';
@@ -53,6 +55,7 @@ export default function PricingPage({ theme, onThemeChange }: Props) {
 
   return (
     <>
+      <Seo {...PAGE_SEO.pricing} />
       <Navbar theme={theme} onThemeChange={onThemeChange} />
 
       <main className="pr">

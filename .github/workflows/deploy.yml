@@ -85,7 +85,15 @@ jobs:
         # that names the current bundle, so a stale copy would pin visitors
         # to the old release.
         aws s3 sync dist/ "s3://$S3_BUCKET" --delete \
-          --exclude "assets/*" \
+          --exclude "assets/*" --exclude "pricing" \
+          --cache-control "no-cache"
+
+        # CloudFront answers a missing key with /index.html (the landing
+        # page) and a 200, so /pricing needs an object at exactly "pricing".
+        # It has no extension, so the type is set by hand; the sync above
+        # excludes the key so --delete leaves it alone.
+        aws s3 cp dist/pricing.html "s3://$S3_BUCKET/pricing" \
+          --content-type "text/html; charset=utf-8" \
           --cache-control "no-cache"
 
     - name: Remove assets from previous builds
@@ -128,7 +136,7 @@ jobs:
         # checked too.
         SITE="https://$CLOUDFRONT_DOMAIN"
 
-        for path in / /dashboard; do
+        for path in / /pricing /dashboard; do
           ok=false
           for i in $(seq 1 10); do
             if curl -fsS "$SITE$path" | grep -q "$BUNDLE"; then
@@ -144,3 +152,10 @@ jobs:
             exit 1
           fi
         done
+
+        # /pricing also serves the bundle when it falls back to the landing
+        # page, so check it is the prerendered pricing page itself.
+        if ! curl -fsS "$SITE/pricing" | grep -q '<link rel="canonical" href="https://www.cvexpert.in/pricing"'; then
+          echo "::error::$SITE/pricing is not serving the prerendered pricing page."
+          exit 1
+        fi

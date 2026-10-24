@@ -3,7 +3,7 @@ import { BadgeCheck, CardIcon, CheckCircle, Play, Rocket, ShieldCheck, Sparks, U
 import DashboardMock from './DashboardMock';
 import './Hero.css';
 
-const highlights = ['ATS Analysis', 'Resume Rewrite', 'Interview Questions', 'Job Match'];
+const highlights = ['ATS Score Checker', 'AI Resume Rewrite', 'Interview Questions', 'Resume vs Job Description'];
 
 const trust = [
   { icon: CardIcon, label: 'No credit card required' },
@@ -19,15 +19,15 @@ export default function Hero() {
           <span className="hero-badge"><Rocket size={14} /> AI-Powered Career Growth</span>
 
           <h1>
+            <span className="hero-kicker">Free ATS Resume Checker</span>
             Land More
             <br />
             <span className="accent">Interviews.</span>
           </h1>
 
           <p className="hero-sub">
-            Get recruiter-grade ATS analysis, AI resume improvements,{' '}
-            <br />
-            interview questions and job matching — in under 60 seconds.
+            Check your resume's ATS score, find missing keywords, get AI resume
+            improvements, interview questions and job matching — in under 60 seconds.
           </p>
 
           <ul className="hero-highlights">
@@ -40,7 +40,7 @@ export default function Hero() {
           </ul>
 
           <div className="hero-cta">
-            <Link className="btn btn-primary btn-lg" to="/login?tab=signup"><Upload /> Analyze My Resume</Link>
+            <Link className="btn btn-primary btn-lg" to="/login?tab=signup"><Upload /> Check My ATS Score</Link>
             <a className="btn btn-ghost btn-lg" href="#sample"><Play /> View Sample Report</a>
           </div>
 
@@ -51,7 +51,7 @@ export default function Hero() {
           </ul>
         </div>
 
-        <div className="hero-visual">
+        <div className="hero-visual" id="sample">
           <div className="hero-note">
             <span>Turn your resume into opportunities</span>
             <svg viewBox="0 0 84 74" fill="none" aria-hidden>

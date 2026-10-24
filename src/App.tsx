@@ -1,4 +1,5 @@
-import { Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { useTheme } from './hooks/useTheme';
 import RequireAuth from './auth/RequireAuth';
 import Dashboard from './pages/Dashboard';
@@ -17,6 +18,19 @@ import Settings from './pages/Settings';
 export default function App() {
   // Applied at the root so the dashboard and login honour it too.
   const { theme, setTheme } = useTheme();
+  const { pathname, hash } = useLocation();
+
+  // Client-side navigation keeps the previous page's scroll position, so a
+  // new route would open mid-page. For a section link (#hash) the browser's own
+  // jump can be lost when the app replaces the prerendered markup on load, so
+  // scroll to the section once it has rendered.
+  useEffect(() => {
+    if (!hash) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      return;
+    }
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ behavior: 'instant' });
+  }, [pathname, hash]);
 
   return (
     <Routes>
